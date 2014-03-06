@@ -8,16 +8,18 @@
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
-#include <malloc.h>
+#include <stdlib.h>
 #include <assert.h>
 #include <errno.h>
 
+#if defined(__linux__)
 #include <asm/types.h>
 #include <sys/socket.h>
 #include <linux/netlink.h>
 #include <linux/rtnetlink.h>
 #include <linux/genetlink.h>
 #include <linux/sockios.h>
+#endif
 
 #include <stdint.h>
 #include <net/if.h>
@@ -118,6 +120,7 @@ vr_vxlan_req_process(void *s_req)
     return;
 }
 
+#if defined(__linux__)
 struct nl_response *
 nl_parse_gen_ctrl(struct nl_client *cl)
 {
@@ -204,7 +207,7 @@ nl_build_sandesh_attr_without_attr_len(struct nl_client *cl)
 }
 
 int
-nl_build_header(struct nl_client *cl, unsigned char **buf, __u32 *buf_len)
+nl_build_header(struct nl_client *cl, unsigned char **buf, uint32_t *buf_len)
 {
     int ret;
 
@@ -303,7 +306,7 @@ nl_build_get_family_id(struct nl_client *cl, char *family)
 }       
 
 int
-nl_build_genlh(struct nl_client *cl, __u8 cmd, __u8 version)
+nl_build_genlh(struct nl_client *cl, uint8_t cmd, uint8_t version)
 {
     struct genlmsghdr *genlh = (struct genlmsghdr *)
         ((char *)cl->cl_buf + cl->cl_buf_offset);
@@ -341,8 +344,23 @@ nl_update_nlh(struct nl_client *cl)
 
     return;
 }
+#elif defined(__FreeBSD__)
+int
+nl_build_genlh(struct nl_client *cl, uint8_t cmd, uint8_t version)
+{
 
-int 
+    return 0;
+}
+
+void
+nl_update_nlh(struct nl_client *cl)
+{
+
+    return;
+}
+#endif
+
+int
 nl_get_attr_hdr_size()
 {
     return NLA_HDRLEN;
@@ -363,20 +381,22 @@ nl_get_buf_len(struct nl_client *cl)
 void
 nl_build_attr(struct nl_client *cl, int len, int attr)
 {
+#if defined(__linux__)
     struct nlattr *nla;
 
     nla = (struct nlattr *)(cl->cl_buf + cl->cl_buf_offset);
     nla->nla_len = NLA_HDRLEN + (len);
     nla->nla_type = attr;
-
+#endif
     /* Adjust by attribute length */
     cl->cl_buf_offset += NLA_HDRLEN + (len);
 }
 
 
 int
-nl_build_nlh(struct nl_client *cl, __u32 type, __u32 flags)
+nl_build_nlh(struct nl_client *cl, uint32_t type, uint32_t flags)
 {
+#if defined(__linux__)
     struct nlmsghdr *nlh = (struct nlmsghdr *)(cl->cl_buf);
 
     if (cl->cl_buf_offset + NLMSG_HDRLEN > cl->cl_buf_len)
@@ -387,7 +407,7 @@ nl_build_nlh(struct nl_client *cl, __u32 type, __u32 flags)
     nlh->nlmsg_flags = flags;
     nlh->nlmsg_seq = cl->cl_seq++;
     nlh->nlmsg_pid = cl->cl_id;
-
+#endif
     cl->cl_buf_offset = NLMSG_HDRLEN;
 
     return 0;
@@ -416,6 +436,7 @@ nl_free(struct nl_client *cl)
     return;
 }
 
+#if defined(__linux__)
 int
 nl_socket(struct nl_client *cl, unsigned int protocol)
 {
@@ -497,6 +518,65 @@ nl_sendmsg(struct nl_client *cl)
 
     return sendmsg(cl->cl_sock, &msg, 0);
 }
+#elif defined(__FreeBSD__)
+int
+nl_socket(struct nl_client *cl, unsigned int protocol)
+{
+
+    if (cl->cl_sock >= 0)
+        return -EEXIST;
+
+    cl->cl_sock = socket(AF_NETLINK, SOCK_DGRAM, protocol);
+    if (cl->cl_sock < 0)
+        return cl->cl_sock;
+
+    cl->cl_sock_protocol = protocol;
+
+    return cl->cl_sock;
+}
+
+
+int
+nl_recvmsg(struct nl_client *cl)
+{
+    int ret;
+    struct msghdr msg;
+    struct iovec iov;
+
+    memset(&msg, 0, sizeof(msg));
+
+    iov.iov_base = (void *)(cl->cl_buf);
+    iov.iov_len = cl->cl_buf_len;
+    msg.msg_iov = &iov;
+    msg.msg_iovlen = 1;
+
+    cl->cl_buf_offset = 0;
+
+    ret = recvmsg(cl->cl_sock, &msg, MSG_DONTWAIT);
+    if (ret < 0) {
+        return ret;
+    }
+
+    cl->cl_recv_len = ret;
+    if (cl->cl_recv_len > cl->cl_buf_len)
+        return -EOPNOTSUPP;
+
+    return ret;
+}
+
+int
+nl_sendmsg(struct nl_client *cl)
+{
+    struct msghdr msg;
+    int len;
+
+    memset(&msg, 0, sizeof(msg));
+    len = cl->cl_buf_offset;
+
+    cl->cl_buf_offset = 0;
+    return send(cl->cl_sock, cl->cl_buf, len, 0);
+}
+#endif
 
 void
 nl_set_buf(struct nl_client *cl, char *buf, unsigned int len)
@@ -589,6 +669,7 @@ exit_register:
 }
 
 
+#if defined(__linux__)
 struct nl_response *
 nl_parse_reply(struct nl_client *cl)
 {
@@ -744,10 +825,10 @@ nl_build_ifinfo(struct nl_client *cl, struct vn_if *ifp)
 }
 
 int
-nl_build_if_create_msg(struct nl_client *cl, struct vn_if *ifp, __u8 ack)
+nl_build_if_create_msg(struct nl_client *cl, struct vn_if *ifp, uint8_t ack)
 {
     int ret;
-    __u32 flags;
+    uint32_t flags;
 
     if (!cl->cl_buf || cl->cl_buf_offset || !ifp)
         return -EINVAL;
@@ -781,4 +862,21 @@ nl_build_if_create_msg(struct nl_client *cl, struct vn_if *ifp, __u8 ack)
 
     return 0;
 }
+#elif defined(__FreeBSD__)
+struct nl_response *
+nl_parse_reply(struct nl_client *cl)
+{
+    struct nl_response *resp =  &cl->resp;
 
+    resp->nl_len = cl->cl_recv_len;
+    resp->nl_data = (uint8_t *)(cl->cl_buf);
+    resp->nl_op = SANDESH_REQUEST;
+    return resp;
+}
+
+int
+vrouter_get_family_id(struct nl_client *cl)
+{
+	return (1);
+}
+#endif

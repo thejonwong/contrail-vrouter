@@ -7,6 +7,7 @@
 #ifndef __VR_OS_H__
 #define __VR_OS_H__
 
+#if defined(__linux__)
 #ifdef __KERNEL__
 
 #include <linux/kernel.h>
@@ -64,6 +65,25 @@ typedef unsigned int __u32;
 #define false 0
 
 #endif /* __KERNEL__ */
+#endif /* __linux__ */
+#if defined(__FreeBSD__)
+
+#include <sys/param.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+
+#define vr_printf(format, arg...)   printf(format, ##arg)
+#define ASSERT(x) KASSERT((x), (#x));
+
+#define AF_BRIDGE AF_VENDOR00
+
+#if !defined(_KERNEL)
+#include <stdbool.h>
+#include <assert.h>
+#define vr_printf(format, arg...)   printf(format, ##arg)
+#define ASSERT(x) assert((x));
+#endif
+#endif /* __FreeBSD__ */
 
 #include "vr_defs.h"
 #include "vr_hash.h"

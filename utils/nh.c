@@ -9,14 +9,13 @@
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
-#include <malloc.h>
+#include <stdlib.h>
 #include <stdbool.h>
 #include <getopt.h>
 
-#include <asm/types.h>
-
 #include <sys/types.h>
 #include <sys/socket.h>
+#if defined(__linux__)
 #include <asm/types.h>
 
 #include <linux/netlink.h>
@@ -25,6 +24,10 @@
 
 #include <net/if.h>
 #include <netinet/ether.h>
+#elif defined(__FreeBSD__)
+#include <net/if.h>
+#include <net/ethernet.h>
+#endif
 
 #include "vr_types.h"
 #include "vr_message.h"
@@ -221,8 +224,10 @@ vr_nexthop_req_process(void *s_req)
 
     if (req->nhr_family == AF_INET)
         strcpy(fam, "AF_INET");
+#if defined(__linux__)
     else if (req->nhr_family == AF_BRIDGE)
         strcpy(fam, "AF_BRIDGE");
+#endif
     else if (req->nhr_family == AF_UNSPEC)
         strcpy(fam, "AF_UNSPEC");
     else 
@@ -318,7 +323,11 @@ op_retry:
         nh_req.nhr_flags = flags;
         nh_req.nhr_encap_oif_id = if_id;
         nh_req.nhr_encap_size = 0;
+#if defined(__linux__)
         nh_req.nhr_encap_family = ETH_P_ARP;
+#elif defined(__FreeBSD__)
+	nh_req.nhr_encap_family = ETHERTYPE_ARP;
+#endif
         nh_req.nhr_vrf = vrf_id;
         nh_req.nhr_tun_sip = sip.s_addr;
         nh_req.nhr_tun_dip = dip.s_addr;
@@ -361,12 +370,14 @@ op_retry:
 
     nh_req.nhr_id = nh_id;
     nh_req.nhr_rid = 0;
+#if defined(__linux__)
     if ((mode == NH_ENCAP) && (flags & NH_FLAG_ENCAP_L2)) 
         nh_req.nhr_family = AF_BRIDGE;
     else if ((mode == NH_COMPOSITE) && (flags &
                 NH_FLAG_COMPOSITE_MULTI_PROTO))
         nh_req.nhr_family = AF_UNSPEC;
-    else 
+    else
+#endif
         nh_req.nhr_family = AF_INET;
 
     nh_req.nhr_type = mode;
@@ -569,7 +580,7 @@ validate_options()
             }
 
             if (type == NH_RCV) {
-                if (oif_set || smac_set || dmac_set || dvrf_set || 
+                if (smac_set || dmac_set || dvrf_set || 
                             sip_set || dip_set || pol_set || 
                             sport_set || dport_set || udp_set ||
                             vxlan_set) {

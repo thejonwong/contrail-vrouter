@@ -8,13 +8,11 @@
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
-#include <malloc.h>
+#include <stdlib.h>
 #include <fcntl.h>
 #include <getopt.h>
 #include <stdbool.h>
 #include <assert.h>
-
-#include <asm/types.h>
 
 #include <sys/types.h>
 #include <sys/time.h>
@@ -23,11 +21,13 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <sys/mman.h>
+#if defined(__linux__)
 #include <asm/types.h>
 
 #include <linux/netlink.h>
 #include <linux/rtnetlink.h>
 #include <linux/if_ether.h>
+#endif
 
 #include <net/if.h>
 #ifdef __KERNEL__

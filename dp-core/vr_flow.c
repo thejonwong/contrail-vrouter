@@ -30,7 +30,7 @@
 unsigned int vr_flow_entries = VR_DEF_FLOW_ENTRIES;
 unsigned int vr_oflow_entries = VR_DEF_OFLOW_ENTRIES;
 
-#ifdef __KERNEL__
+#if defined(__linux__) && defined(__KERNEL__)
 extern unsigned short vr_flow_major;
 #endif
 
@@ -1137,7 +1137,7 @@ vr_flow_req_process(void *s_req)
     case FLOW_OP_FLOW_TABLE_GET:
         req->fr_ftable_size = vr_flow_table_size(router) +
             vr_oflow_table_size(router);
-#ifdef __KERNEL__
+#if defined(__linux__) && defined(__KERNEL__)
         req->fr_ftable_dev = vr_flow_major;
 #endif
         break;

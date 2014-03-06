@@ -112,8 +112,12 @@ struct vr_interface {
     unsigned char vif_name[VR_INTERFACE_NAME_LEN];
     unsigned int  vif_ip;
 #ifdef __KERNEL__
+#if defined(__linux__)
     struct napi_struct vr_napi;
     struct sk_buff_head vr_skb_inputq;
+#elif defined(__FreeBSD__)
+    void (*saved_if_input) (struct ifnet *, struct mbuf *);
+#endif
 #endif
 };
 

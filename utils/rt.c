@@ -9,13 +9,12 @@
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
-#include <malloc.h>
+#include <stdlib.h>
 #include <stdbool.h>
-
-#include <asm/types.h>
 
 #include <sys/types.h>
 #include <sys/socket.h>
+#if defined(__linux__)
 #include <asm/types.h>
 
 #include <linux/netlink.h>
@@ -24,6 +23,10 @@
 
 #include <net/if.h>
 #include <netinet/ether.h>
+#elif defined(__FreeBSD__)
+#include <net/if.h>
+#include <net/ethernet.h>
+#endif
 
 #include "vr_types.h"
 #include "vr_nexthop.h"
@@ -381,8 +384,13 @@ int main(int argc, char *argv[])
                 if (family == 0)
                     family = AF_INET;
                 else {
+#if defined(__linux__)
                     family = AF_BRIDGE;
                     rt_type = RT_UCAST;
+#elif defined(__FreeBSD__)
+		    printf("BRIDGE family not supported\n");
+		    family = AF_INET;
+#endif
                 }
 
                 break;

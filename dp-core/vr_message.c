@@ -58,7 +58,7 @@ vr_message_request(struct vr_message *message)
         return 0;
 
     if (vr_not_ready)
-        return -EBADFD;
+        return -ENETRESET;
 
     message_h.vm_proto->mproto_decode(message->vr_message_buf,
             message->vr_message_len, NULL, NULL);

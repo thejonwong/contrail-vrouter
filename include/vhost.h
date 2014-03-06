@@ -13,7 +13,12 @@ extern "C" {
 
 #ifdef __KERNEL__
 struct vhost_priv {
+#if defined(__linux__)
     struct net_device *vp_dev;
+#elif defined(__FreeBSD__)
+    struct ifnet *vp_ifp;
+    struct mtx vp_mtx;
+#endif
     struct vrouter *vp_router;
     struct vr_interface *vp_vifp;
 };

@@ -6,15 +6,15 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
-#include <malloc.h>
+#include <stdlib.h>
 #include <inttypes.h>
 #include <getopt.h>
 #include <stdbool.h>
 
-#include <asm/types.h>
 
 #include <sys/types.h>
 #include <sys/socket.h>
+#if defined(__linux__)
 #include <asm/types.h>
 
 #include <linux/netlink.h>
@@ -23,8 +23,10 @@
 
 #include <net/if.h>
 #include <net/ethernet.h>
-#ifdef __linux__
 #include <netinet/ether.h>
+#elif defined(__FreeBSD__)
+#include <net/if.h>
+#include <net/ethernet.h>
 #endif
 
 #include "vr_types.h"
@@ -332,10 +334,10 @@ vr_intf_op(unsigned int op)
 {
     int ret; 
     vr_interface_req intf_req;
-
+#if defined(__linux__)
     if (create_set)
         return vhost_create();
-
+#endif
 op_retry:
     memset(&intf_req, 0 , sizeof(intf_req));
     memset(if_name, 0, sizeof(if_name));
@@ -665,8 +667,10 @@ main(int argc, char *argv[])
     if (!cl)
         exit(-ENOMEM);
 
+#if defined(__linux__)
     if (create_set)
         sock_proto = NETLINK_ROUTE;
+#endif
 
     ret = nl_socket(cl, sock_proto);
     if (ret <= 0)

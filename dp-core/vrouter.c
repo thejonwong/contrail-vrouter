@@ -6,7 +6,9 @@
  * Copyright (c) 2013 Juniper Networks, Inc. All rights reserved.
  */
 #include <vr_os.h>
+#if defined(__linux__)
 #include <linux/version.h>
+#endif
 #include "vr_sandesh.h"
 
 static struct vrouter router;
@@ -116,6 +118,7 @@ int vr_to_vm_mss_adj = 1;   /* adjust TCP MSS on packet sent to VM */
  * that enough cores are available). Also, hyper-thread siblings of the
  * above 3 cores are not used by vrouter for RX processing.
  */
+#if defined(__linux__)
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,39))
 
 int vr_perfr1 = 0;   /* RPS after pulling inner headers */
@@ -141,6 +144,13 @@ int vr_perfr3 = 0;
 int vr_perfp = 0;
 
 #endif
+#endif
+#endif /* __linux__ */
+#if defined(__FreeBSD__)
+int vr_perfr1 = 0;
+int vr_perfr2 = 1;
+int vr_perfr3 = 1;
+int vr_perfp = 1;
 #endif
 
 /*

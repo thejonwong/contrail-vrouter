@@ -958,7 +958,7 @@ nh_mpls_udp_tunnel(unsigned short vrf, struct vr_packet *pkt,
     struct vr_interface *vif;
     struct vr_vrf_stats *stats;
     unsigned int tun_sip, tun_dip, head_space;
-    __u16 tun_encap_len, udp_src_port = VR_MPLS_OVER_UDP_SRC_PORT; 
+    uint16_t tun_encap_len, udp_src_port = VR_MPLS_OVER_UDP_SRC_PORT;
     unsigned short reason = VP_DROP_PUSH;
     struct vr_packet *tmp_pkt;
 
