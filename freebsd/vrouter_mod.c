@@ -695,8 +695,8 @@ static void
 vrouter_freebsd_exit(void)
 {
 	vr_message_exit();
-	vhost_exit();
 	vrouter_exit(false);
+	vhost_exit();
 	contrail_socket_destroy();
 }
 
@@ -720,15 +720,15 @@ vrouter_freebsd_init(void)
 		goto out0;
 	}
 
-	ret = vrouter_init();
-	if (ret) {
-		vr_log(VR_ERR, "vrouter initialization failed:%d\n", ret);
-		goto out1;
-	}
-
 	ret = vhost_init();
 	if (ret) {
 		vr_log(VR_ERR, "vhost init error:%d\n", ret);
+		goto out1;
+	}
+
+	ret = vrouter_init();
+	if (ret) {
+		vr_log(VR_ERR, "vrouter initialization failed:%d\n", ret);
 		goto out2;
 	}
 
@@ -741,9 +741,9 @@ vrouter_freebsd_init(void)
 	return (0);
 
 out3:
-	vhost_exit();
-out2:
 	vrouter_exit(false);
+out2:
+	vhost_exit();
 out1:
 	contrail_socket_destroy();
 out0:
