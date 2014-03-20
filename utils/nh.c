@@ -33,6 +33,7 @@
 #include "vr_message.h"
 #include "vr_nexthop.h"
 #include "vr_genetlink.h"
+#include "vr_os.h"
 #include "nl_util.h"
 
 static struct nl_client *cl;
@@ -224,10 +225,8 @@ vr_nexthop_req_process(void *s_req)
 
     if (req->nhr_family == AF_INET)
         strcpy(fam, "AF_INET");
-#if defined(__linux__)
     else if (req->nhr_family == AF_BRIDGE)
         strcpy(fam, "AF_BRIDGE");
-#endif
     else if (req->nhr_family == AF_UNSPEC)
         strcpy(fam, "AF_UNSPEC");
     else 
@@ -370,14 +369,13 @@ op_retry:
 
     nh_req.nhr_id = nh_id;
     nh_req.nhr_rid = 0;
-#if defined(__linux__)
+
     if ((mode == NH_ENCAP) && (flags & NH_FLAG_ENCAP_L2)) 
         nh_req.nhr_family = AF_BRIDGE;
     else if ((mode == NH_COMPOSITE) && (flags &
                 NH_FLAG_COMPOSITE_MULTI_PROTO))
         nh_req.nhr_family = AF_UNSPEC;
     else
-#endif
         nh_req.nhr_family = AF_INET;
 
     nh_req.nhr_type = mode;

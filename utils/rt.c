@@ -36,6 +36,7 @@
 #include "vr_defs.h"
 #include "vr_route.h"
 #include "vr_bridge.h"
+#include "vr_os.h"
 
 static struct nl_client *cl;
 static int resp_code;
@@ -384,13 +385,8 @@ int main(int argc, char *argv[])
                 if (family == 0)
                     family = AF_INET;
                 else {
-#if defined(__linux__)
                     family = AF_BRIDGE;
                     rt_type = RT_UCAST;
-#elif defined(__FreeBSD__)
-		    printf("BRIDGE family not supported\n");
-		    family = AF_INET;
-#endif
                 }
 
                 break;

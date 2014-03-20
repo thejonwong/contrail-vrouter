@@ -67,17 +67,20 @@ typedef unsigned int __u32;
 #endif /* __KERNEL__ */
 #endif /* __linux__ */
 #if defined(__FreeBSD__)
-
 #include <sys/param.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 
+/*
+ * BSD has no family AF_BRIDGE so to avoid to many ifdef in ksync and
+ * vrouter code it is defined here in the same way as in LINUX
+ */
+#define AF_BRIDGE	7
+
+#if defined(_KERNEL)
 #define vr_printf(format, arg...)   printf(format, ##arg)
 #define ASSERT(x) KASSERT((x), (#x));
-
-#define AF_BRIDGE AF_VENDOR00
-
-#if !defined(_KERNEL)
+#else
 #include <stdbool.h>
 #include <assert.h>
 #define vr_printf(format, arg...)   printf(format, ##arg)
