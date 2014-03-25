@@ -220,6 +220,7 @@ vr_response_process(void *s)
     return;
 }
 
+#if defined(__linux__)
 /*
  * create vhost interface in linux
  */
@@ -251,6 +252,7 @@ vhost_create(void)
 
     return ret;
 }
+#endif
 
 static int
 vr_intf_send_msg(void *request, char *request_string)
