@@ -7,6 +7,7 @@
  * Copyright (c) 2013 Juniper Networks, Inc. All rights reserved.
  */
 #include <vr_os.h>
+#include <vrouter.h>
 #include "vr_btable.h"
 
 /*

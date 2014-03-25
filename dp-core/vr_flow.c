@@ -4,11 +4,15 @@
  * Copyright (c) 2013 Juniper Networks, Inc. All rights reserved.
  */
 #include <vr_os.h>
+#include <vr_types.h>
+#include <vr_packet.h>
+#include <vr_mirror.h>
 #include "vr_sandesh.h"
 #include "vr_message.h"
 #include "vr_mcast.h"
 #include "vr_btable.h"
 #include "vr_fragment.h"
+#include "vr_hash.h"
 
 #define VR_NUM_FLOW_TABLES          1
 #define VR_DEF_FLOW_ENTRIES         (512 * 1024)

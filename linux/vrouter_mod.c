@@ -24,6 +24,7 @@
 #include "vr_linux.h"
 #include "vr_os.h"
 #include "vr_compat.h"
+#include "vr_hash.h"
 
 /*
  * Overlay length used for TCP MSS adjust. For UDP outer header, overlay

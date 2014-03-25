@@ -4,6 +4,8 @@
  * Copyright (c) 2013 Juniper Networks, Inc. All rights reserved.
  */
 #include <vr_os.h>
+#include <vr_types.h>
+#include <vr_packet.h>
 
 unsigned char vr_bcast_mac[] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 unsigned char vr_well_known_mac_infix[] = { 0x80, 0xc2 };

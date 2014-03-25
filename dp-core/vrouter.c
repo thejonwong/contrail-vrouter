@@ -9,7 +9,17 @@
 #if defined(__linux__)
 #include <linux/version.h>
 #endif
+#include "vr_types.h"
 #include "vr_sandesh.h"
+#include <vr_interface.h>
+#include <vr_nexthop.h>
+#include <vr_route.h>
+#include <vr_mpls.h>
+#include <vr_flow.h>
+#include <vr_bridge.h>
+#include <vr_packet.h>
+#include <vr_mirror.h>
+#include <vr_vxlan.h>
 
 static struct vrouter router;
 struct host_os *vrouter_host;

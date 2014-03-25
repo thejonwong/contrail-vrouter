@@ -3,6 +3,7 @@
  */
 #include <vr_index_table.h>
 #include <vr_os.h>
+#include <vrouter.h>
 #if defined(__linux__)
 #include <stdarg.h>
 #elif defined(__FreeBSD__)

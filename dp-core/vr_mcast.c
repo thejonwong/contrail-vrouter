@@ -2,10 +2,13 @@
  * Copyright (c) 2013 Juniper Networks, Inc. All rights reserved.
  */
 #include <vr_os.h>
+#include <vr_types.h>
+#include <vr_packet.h>
 #include "vr_sandesh.h"
 #include "vr_message.h"
 #include <vr_mcast.h>
 #include <vr_htable.h>
+#include <vr_nexthop.h>
 
 struct vr_mcast_entry_key {
     unsigned int src_ip; /* In network byte order */

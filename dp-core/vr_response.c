@@ -6,6 +6,7 @@
 
 #include "vr_sandesh.h"
 #include "vr_os.h"
+#include "vr_types.h"
 
 void
 vr_response_process(void *s_req) 

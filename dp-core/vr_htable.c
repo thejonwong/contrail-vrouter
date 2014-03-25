@@ -2,8 +2,10 @@
  * Copyright (c) 2013 Juniper Networks, Inc. All rights reserved.
  */
 #include <vr_os.h>
+#include <vrouter.h>
 #include <vr_htable.h>
 #include <vr_btable.h>
+#include <vr_hash.h>
 
 #define VR_HENTRIES_PER_BUCKET 4
 struct vr_htable {

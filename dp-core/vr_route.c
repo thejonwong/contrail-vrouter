@@ -4,6 +4,9 @@
  * Copyright (c) 2013 Juniper Networks, Inc. All rights reserved.
  */
 #include <vr_os.h>
+#include <vr_types.h>
+#include <vr_packet.h>
+#include <vr_route.h>
 #include "vr_message.h"
 #include "vr_sandesh.h"
 

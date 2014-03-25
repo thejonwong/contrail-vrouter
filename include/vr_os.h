@@ -67,8 +67,12 @@ typedef unsigned int __u32;
 #endif /* __KERNEL__ */
 #endif /* __linux__ */
 #if defined(__FreeBSD__)
+#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/socket.h>
+#include <net/if.h>
+#include <net/if_types.h>
+#include <net/ethernet.h>
 #include <netinet/in.h>
 
 /*
@@ -87,19 +91,6 @@ typedef unsigned int __u32;
 #define ASSERT(x) assert((x));
 #endif
 #endif /* __FreeBSD__ */
-
-#include "vr_defs.h"
-#include "vr_hash.h"
-#include <vrouter.h>
-#include <vr_interface.h>
-#include <vr_nexthop.h>
-#include <vr_route.h>
-#include <vr_mpls.h>
-#include <vr_flow.h>
-#include <vr_bridge.h>
-#include <vr_packet.h>
-#include <vr_mirror.h>
-#include <vr_vxlan.h>
 
 extern int vrouter_dbg;
 
