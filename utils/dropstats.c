@@ -34,6 +34,7 @@
 #include "vr_nexthop.h"
 #include "vr_genetlink.h"
 #include "nl_util.h"
+#include "vr_os.h"
 
 static struct nl_client *cl;
 static int resp_code;

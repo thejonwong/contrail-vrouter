@@ -74,6 +74,8 @@ typedef unsigned int __u32;
 #include <net/if_types.h>
 #include <net/ethernet.h>
 #include <netinet/in.h>
+#include "netlink.h"
+#include "genetlink.h"
 
 /*
  * BSD has no family AF_BRIDGE so to avoid to many ifdef in ksync and

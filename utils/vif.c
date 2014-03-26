@@ -11,6 +11,7 @@
 #include <getopt.h>
 #include <stdbool.h>
 
+#include "vr_os.h"
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -35,6 +36,7 @@
 #include "vhost.h"
 #include "vr_genetlink.h"
 #include "nl_util.h"
+
 
 #define VHOST_TYPE_STRING       "vhost"
 #define AGENT_TYPE_STRING       "agent"

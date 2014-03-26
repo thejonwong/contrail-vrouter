@@ -39,6 +39,7 @@
 #include "vr_mirror.h"
 #include "vr_genetlink.h"
 #include "nl_util.h"
+#include "vr_os.h"
 
 #define TABLE_FLAG_VALID        0x1
 #define MEM_DEV                 "/dev/flow"

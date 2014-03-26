@@ -33,6 +33,7 @@
 #include "vr_mpls.h"
 #include "vr_genetlink.h"
 #include "nl_util.h"
+#include "vr_os.h"
 
 static struct nl_client *cl;
 static bool dump_pending = false;

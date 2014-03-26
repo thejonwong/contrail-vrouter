@@ -19,15 +19,6 @@ extern "C" {
 #define NL_MSG_TYPE_GEN_CTRL        2
 #define NL_MSG_TYPE_FMLY            3
 
-#if defined(__FreeBSD__)
-/* define it for BSD even if not really used */
-#define NETLINK_GENERIC	0
-#define AF_NETLINK	AF_VENDOR00
-#define NLM_F_REQUEST	1
-#define NLA_HDRLEN	0
-#define NLMSG_HDRLEN	0
-#endif
-
 struct nl_response {
     unsigned int nl_type;
     unsigned int nl_op;
@@ -58,7 +49,6 @@ struct nl_client {
 };
 
 
-
 #define GENL_FAMILY_NAME_LEN            16
 
 struct genl_ctrl_message {
@@ -67,6 +57,7 @@ struct genl_ctrl_message {
 };
 
 #define NLA_DATA(nla)                   ((char *)nla + NLA_HDRLEN)
+#define NLA_LEN(nla)                    (nla->nla_len - NLA_HDRLEN)
 #define GENLMSG_DATA(buf)               ((char *)buf + GENL_HDRLEN)
 
 extern struct nl_client *nl_register_client(void);

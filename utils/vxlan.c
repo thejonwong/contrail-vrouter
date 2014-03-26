@@ -12,6 +12,8 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
+#include "vr_os.h"
+
 #include <sys/types.h>
 #include <sys/socket.h>
 #if defined(__linux__)
