@@ -64,8 +64,6 @@ CFLAGS += -I$(.CURDIR)/../../tools
 CFLAGS += -I$(SANDESH_ROOT)/library/c
 CFLAGS += -g
 CFLAGS += -D__KERNEL__
-# For developer purposes only
-#CFLAGS += -DINVARIANTS -DINVARIANT_SUPPORT
 
 clean:
 	rm -f export_syms
