@@ -8,8 +8,6 @@
 #include <vrouter.h>
 #include "vr_message.h"
 
-extern bool vr_not_ready;
-
 static char *
 vr_message_default_malloc(unsigned int size)
 {
