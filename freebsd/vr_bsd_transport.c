@@ -44,7 +44,11 @@ bsd_trans_alloc(unsigned int size)
 {
 	char *buf;
 
-	buf = malloc(size + NETLINK_HEADER_LEN, M_VROUTER, M_NOWAIT|M_ZERO);
+	/* Netlink requires buffers to be aligned/padded to NLMSG_ALINGTO
+	 * bytes, even if it will actually use less bytes than aligned
+	 * buffer offers.
+	 */
+	buf = malloc(NLMSG_ALIGN(size) + NETLINK_HEADER_LEN, M_VROUTER, M_NOWAIT|M_ZERO);
 	KASSERT((buf != NULL), ("Cannot allocate buf"));
 	return (buf + NETLINK_HEADER_LEN);
 }
@@ -91,7 +95,7 @@ vr_transport_request(struct socket *so, char *buf, size_t len)
 
 		/* Create new mbuf and copy response to it */
 		m = m_devget(response->vr_message_buf - NETLINK_HEADER_LEN,
-		    response->vr_message_len + NETLINK_HEADER_LEN,
+		    NLA_ALIGN(response->vr_message_len) + NETLINK_HEADER_LEN,
 		    0, NULL, NULL);
 
 		if (!m) {
@@ -102,8 +106,7 @@ vr_transport_request(struct socket *so, char *buf, size_t len)
 		}
 		m->m_flags |= M_EOR;
 
-		len = response->vr_message_len + GENL_HDRLEN + NLA_HDRLEN;
-		len = NLMSG_ALIGN(len);
+		len = response->vr_message_len + NETLINK_HEADER_LEN;
 
 		resp_nlh = mtod(m, struct nlmsghdr *);
 		req_nlh = (struct nlmsghdr *)buf;
@@ -115,10 +118,10 @@ vr_transport_request(struct socket *so, char *buf, size_t len)
 
 		resp_genlh = (struct genlmsghdr *)(mtod(m, char *) + NLMSG_HDRLEN);
 		req_genlh = (struct genlmsghdr *)(buf + NLMSG_HDRLEN);
-		memcpy(resp_genlh, req_genlh, sizeof(*resp_genlh));
+		memcpy(resp_genlh, req_genlh, GENL_HDRLEN);
 
 		nla = (struct nlattr *)(mtod(m, char *) + (NLMSG_HDRLEN + GENL_HDRLEN));
-		nla->nla_len = response->vr_message_len;
+		nla->nla_len = response->vr_message_len + NLA_HDRLEN;
 		nla->nla_type = NL_ATTR_VR_MESSAGE_PROTOCOL;
 
 		/* Enqueue mbuf in socket's receive sockbuf */
@@ -139,7 +142,7 @@ vr_transport_request(struct socket *so, char *buf, size_t len)
 		}
 		resp_nlh = mtod(m, struct nlmsghdr *);
 		req_nlh = (struct nlmsghdr *)buf;
-		resp_nlh->nlmsg_len = 0;
+		resp_nlh->nlmsg_len = NLMSG_HDRLEN;
 		resp_nlh->nlmsg_type = NLMSG_DONE;
 		resp_nlh->nlmsg_flags = 0;
 		resp_nlh->nlmsg_seq = req_nlh->nlmsg_seq;
