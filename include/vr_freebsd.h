@@ -33,6 +33,15 @@
 
 #define VROUTER_VERSIONID 1
 
+/* Vrouter communication socket's ("fake Netlink") sizes of buffers */
+#if PAGE_SIZE > 4096UL
+#define VR_SOCK_SEND_BUFF_SIZE 4096UL
+#define VR_SOCK_RECV_BUFF_SIZE 4096UL
+#else
+#define VR_SOCK_SEND_BUFF_SIZE PAGE_SIZE
+#define VR_SOCK_RECV_BUFF_SIZE PAGE_SIZE
+#endif
+
 extern int vr_log_level;
 
 enum {

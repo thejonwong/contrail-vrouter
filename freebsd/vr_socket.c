@@ -63,7 +63,7 @@ contrail_attach(struct socket *so, int proto, struct thread *td)
 {
 	int ret;
 
-	ret = soreserve(so, 512, 512);
+	ret = soreserve(so, VR_SOCK_SEND_BUFF_SIZE, VR_SOCK_RECV_BUFF_SIZE);
 	if (ret) {
 		vr_log(VR_ERR, "raw attach failed:%d\n", ret);
 		return (ret);
