@@ -133,13 +133,18 @@ vr_transport_request(struct socket *so, char *buf, size_t len)
 	}
 
 	if (multi_flag) {
-		m = m_get2(NLMSG_HDRLEN, M_NOWAIT, MT_DATA, M_EOR);
+		m = m_gethdr(M_NOWAIT, MT_DATA);
+
 		if (!m) {
 			vr_log(VR_ERR, "Cannot create mbuf of len %d\n",
 			    NLMSG_HDRLEN);
 			free(buf, M_VROUTER);
 			return (2);
 		}
+		m->m_pkthdr.len = NLMSG_HDRLEN;
+		m->m_len = NLMSG_HDRLEN;
+		m->m_flags |= M_EOR;
+
 		resp_nlh = mtod(m, struct nlmsghdr *);
 		req_nlh = (struct nlmsghdr *)buf;
 		resp_nlh->nlmsg_len = NLMSG_HDRLEN;
