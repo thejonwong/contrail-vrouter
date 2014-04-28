@@ -257,9 +257,6 @@ freebsd_if_rx(struct vr_interface *vif, struct vr_packet *pkt)
 	/* Fetch original mbuf from packet structure */
 	m = vp_os_packet(pkt);
 
-	vr_log(VR_DEBUG, "vif:%p ifp:%p pkt:%p m:%p func:%p\n",
-	    vif, ifp, pkt, m, vif->saved_if_input);
-
 	/* Pass mbuf to network stack using original routine */
 	mn = m;
 	while (mn) {
