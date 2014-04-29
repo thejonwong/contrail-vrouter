@@ -170,9 +170,16 @@ contrail_output(struct mbuf *m, struct socket *so)
 	return (ret);
 }
 
-static struct protosw contrailsw[1] = {
+static struct protosw contrailsw[2] = {
 {
 	.pr_type =		SOCK_DGRAM,
+	.pr_domain =		&contrail_domain,
+	.pr_flags =		PR_ATOMIC,
+	.pr_output =		contrail_output,
+	.pr_usrreqs =		&contrail_usrreqs
+},
+{
+	.pr_type =		SOCK_RAW,
 	.pr_domain =		&contrail_domain,
 	.pr_flags =		PR_ATOMIC,
 	.pr_output =		contrail_output,
