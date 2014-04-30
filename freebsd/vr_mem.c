@@ -52,7 +52,7 @@ int flowmmap(struct cdev *kdev, vm_ooffset_t offset, vm_paddr_t *paddr,
 {
 	struct vrouter *router;
 
-	//XXX support only for one vrouter
+	/* Support only for one vrouter */
 	router = (struct vrouter *)vrouter_get(0);
 
 	*paddr = vtophys(vr_flow_get_va(router, offset));
@@ -72,13 +72,15 @@ static struct cdevsw mem_cdevsw = {
 void
 vr_mem_exit(void)
 {
+
 	destroy_dev(mem_cdev);
 }
 
 int
 vr_mem_init(void)
 {
-	mem_cdev = make_dev(&mem_cdevsw, 0,
-		UID_ROOT, GID_KMEM, 0640, "flow");
+
+	mem_cdev = make_dev(&mem_cdevsw, 0, UID_ROOT, GID_KMEM, 0640, "flow");
+
 	return (0);
 }
