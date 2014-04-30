@@ -49,13 +49,23 @@ bsd_trans_alloc(unsigned int size)
 	 * buffer offers.
 	 */
 	buf = malloc(NLMSG_ALIGN(size) + NETLINK_HEADER_LEN, M_VROUTER, M_NOWAIT|M_ZERO);
-	KASSERT((buf != NULL), ("Cannot allocate buf"));
+	if (!buf)
+		return (NULL);
 	return (buf + NETLINK_HEADER_LEN);
 }
 
 static void
 bsd_trans_free(char *buf)
 {
+
+	KASSERT((buf != NULL), ("Cannot free NULLed buf"));
+	free(buf - NETLINK_HEADER_LEN, M_VROUTER);
+}
+
+static void
+bsd_trans_ext_free(struct mbuf *m, void *arg1, void* arg2)
+{
+	char *buf = (char *)arg1;
 
 	KASSERT((buf != NULL), ("Cannot free NULLed buf"));
 	free(buf - NETLINK_HEADER_LEN, M_VROUTER);
@@ -69,11 +79,12 @@ static struct vr_mtransport bsd_transport = {
 int
 vr_transport_request(struct socket *so, char *buf, size_t len)
 {
-	struct vr_message request, *response;
+	struct vr_message request, *resp;
 	struct mbuf *m;
 	struct nlmsghdr *req_nlh, *resp_nlh;
 	struct genlmsghdr *req_genlh, *resp_genlh;
 	struct nlattr *nla;
+	caddr_t data;
 	uint32_t multi_flag;
 	int i;
 	int ret;
@@ -82,31 +93,31 @@ vr_transport_request(struct socket *so, char *buf, size_t len)
 	request.vr_message_len = len - NETLINK_HEADER_LEN;
 
 	ret = vr_message_request(&request);
-	if (ret) {
-		free(buf, M_VROUTER);
+	if (ret)
 		vr_log(VR_ERR, "Message request failed, ret:%d\n", ret);
-		return (ret);
-	}
 
 	multi_flag = 0;
-	while ((response = vr_message_dequeue_response())) {
+	while ((resp = vr_message_dequeue_response())) {
 		if (!multi_flag && !vr_response_queue_empty())
 			multi_flag = NLM_F_MULTI;
 
-		/* Create new mbuf and copy response to it */
-		m = m_devget(response->vr_message_buf - NETLINK_HEADER_LEN,
-		    NLA_ALIGN(response->vr_message_len) + NETLINK_HEADER_LEN,
-		    0, NULL, NULL);
-
-		if (!m) {
+		MGETHDR(m, M_NOWAIT, MT_DATA);
+		if (m == NULL) {
 			vr_log(VR_ERR, "Cannot create mbuf\n");
-			vr_message_free(response);
-			free(buf, M_VROUTER);
+			vr_message_free(resp);
 			return (1);
 		}
+		data = (caddr_t)resp->vr_message_buf - NETLINK_HEADER_LEN;
+		m->m_data = data;
+		m->m_pkthdr.len = m->m_len =
+		    NLA_ALIGN(resp->vr_message_len) + NETLINK_HEADER_LEN;
+		MEXTADD(m, data,
+		    NLA_ALIGN(resp->vr_message_len) + NETLINK_HEADER_LEN,
+		    bsd_trans_ext_free, resp->vr_message_buf,
+		    NULL, 0, EXT_NET_DRV);
 		m->m_flags |= M_EOR;
 
-		len = NLMSG_ALIGN(response->vr_message_len + NETLINK_HEADER_LEN);
+		len = NLMSG_ALIGN(resp->vr_message_len + NETLINK_HEADER_LEN);
 
 		resp_nlh = mtod(m, struct nlmsghdr *);
 		req_nlh = (struct nlmsghdr *)buf;
@@ -121,7 +132,7 @@ vr_transport_request(struct socket *so, char *buf, size_t len)
 		memcpy(resp_genlh, req_genlh, GENL_HDRLEN);
 
 		nla = (struct nlattr *)(mtod(m, char *) + (NLMSG_HDRLEN + GENL_HDRLEN));
-		nla->nla_len = response->vr_message_len;
+		nla->nla_len = resp->vr_message_len;
 		nla->nla_type = NL_ATTR_VR_MESSAGE_PROTOCOL;
 
 		/* Enqueue mbuf in socket's receive sockbuf */
@@ -129,7 +140,8 @@ vr_transport_request(struct socket *so, char *buf, size_t len)
 		sorwakeup(so);
 
 		/* Free buffer and response */
-		vr_message_free(response);
+		resp->vr_message_buf = NULL;
+		vr_message_free(resp);
 	}
 
 	if (multi_flag) {
@@ -138,7 +150,6 @@ vr_transport_request(struct socket *so, char *buf, size_t len)
 		if (!m) {
 			vr_log(VR_ERR, "Cannot create mbuf of len %d\n",
 			    NLMSG_HDRLEN);
-			free(buf, M_VROUTER);
 			return (2);
 		}
 		m->m_pkthdr.len = NLMSG_HDRLEN;
@@ -158,7 +169,6 @@ vr_transport_request(struct socket *so, char *buf, size_t len)
 		sorwakeup(so);
 	}
 
-	free(buf, M_VROUTER);
 	return (0);
 }
 

@@ -72,7 +72,6 @@ vhost_if_start(struct ifnet *ifp)
 	for (;;) {
 		IF_DEQUEUE(&ifp->if_snd, m);
 		if (m) {
-			vr_log(VR_DEBUG, "vif:%p m:%p\n", vif, m);
 			ret = freebsd_to_vr(vif, m);
 			if (ret) {
 				vr_log(VR_ERR, "Cannot pass mbuf to vrouter "

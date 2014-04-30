@@ -157,12 +157,8 @@ int vr_perfp = 0;
 #endif
 #endif /* __linux__ */
 #if defined(__FreeBSD__)
-int vr_perfr1 = 0;
-int vr_perfr2 = 1;
-int vr_perfr3 = 1;
 int vr_perfp = 1;
 #endif
-
 /*
  * Following sysctls can be set if vrouter shouldn't pick a CPU for RPS
  * core based on a hash of the received packet. Turned off by default.

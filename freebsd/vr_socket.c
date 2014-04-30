@@ -137,22 +137,35 @@ contrail_output(struct mbuf *m, struct socket *so)
 
 	KASSERT((m && so), ("Incorrect parameters:m:%p so:%p", m, so));
 
-	/* Prepare buffer for transport layer */
 	len = m_length(m, NULL);
-	buf = malloc(len, M_VROUTER, M_NOWAIT|M_ZERO);
-	if (!buf) {
-		vr_log(VR_ERR, "Cannot allocate buffer\n");
-		m_freem(m);
-		return (-1);
+	/* If contiguous space in mbuf it can be passed directly */
+	if (m->m_len == len) {
+		ret = vr_transport_request(so, mtod(m, char *), len);
+		if (ret) {
+			vr_log(VR_ERR, "Transport request failed, ret:%d\n",
+			    ret);
+		}
+	} else {
+		/* Prepare buffer for transport layer */
+		buf = malloc(len, M_VROUTER, M_NOWAIT|M_ZERO);
+		if (!buf) {
+			vr_log(VR_ERR, "Cannot allocate buffer\n");
+			m_freem(m);
+			return (-1);
+		}
+
+		m_copydata(m, 0, len, buf);
+
+		/* Pass buffer to decoder */
+		ret = vr_transport_request(so, buf, len);
+		if (ret) {
+			vr_log(VR_ERR, "Transport request failed, ret:%d\n",
+			    ret);
+		}
+		free(buf, M_VROUTER);
 	}
 
-	m_copydata(m, 0, len, buf);
 	m_freem(m);
-
-	/* Pass buffer to decoder */
-	ret = vr_transport_request(so, buf, len);
-	if (ret)
-		vr_log(VR_ERR, "Transport request failed, ret:%d\n", ret);
 
 	return (ret);
 }
@@ -189,7 +202,7 @@ contrail_socket_destroy(void)
 	struct domain *dp, *prev = NULL;
 
 	//TODO: make locking/unlocking of dom_mtx public in BSD
-	for (dp = domains; dp != NULL; dp = dp->dom_next)
+	for (dp = domains; dp != NULL; prev = dp, dp = dp->dom_next)
 		if (dp->dom_family == AF_VENDOR00) {
 			if (!prev) {
 				domains = dp->dom_next;
