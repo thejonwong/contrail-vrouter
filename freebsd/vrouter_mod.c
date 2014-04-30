@@ -701,6 +701,7 @@ vrouter_freebsd_exit(void)
 	vr_message_exit();
 	vrouter_exit(false);
 	vhost_exit();
+	vr_mem_exit();
 	contrail_socket_destroy();
 }
 
@@ -736,14 +737,22 @@ vrouter_freebsd_init(void)
 		goto out2;
 	}
 
+	ret = vr_mem_init();
+	if (ret) {
+		vr_log(VR_ERR, "flow device initialization failed:%d\n", ret);
+		goto out3;
+	}
+
 	ret = vr_message_init();
 	if (ret) {
 		vr_log(VR_ERR, "message init error:%d\n", ret);
-		goto out3;
+		goto out4;
 	}
 
 	return (0);
 
+out4:
+	vr_mem_exit();
 out3:
 	vrouter_exit(false);
 out2:
