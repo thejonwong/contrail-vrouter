@@ -106,7 +106,7 @@ vr_transport_request(struct socket *so, char *buf, size_t len)
 		}
 		m->m_flags |= M_EOR;
 
-		len = response->vr_message_len + NETLINK_HEADER_LEN;
+		len = NLMSG_ALIGN(response->vr_message_len + NETLINK_HEADER_LEN);
 
 		resp_nlh = mtod(m, struct nlmsghdr *);
 		req_nlh = (struct nlmsghdr *)buf;
@@ -121,7 +121,7 @@ vr_transport_request(struct socket *so, char *buf, size_t len)
 		memcpy(resp_genlh, req_genlh, GENL_HDRLEN);
 
 		nla = (struct nlattr *)(mtod(m, char *) + (NLMSG_HDRLEN + GENL_HDRLEN));
-		nla->nla_len = response->vr_message_len + NLA_HDRLEN;
+		nla->nla_len = response->vr_message_len;
 		nla->nla_type = NL_ATTR_VR_MESSAGE_PROTOCOL;
 
 		/* Enqueue mbuf in socket's receive sockbuf */
