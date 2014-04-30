@@ -139,7 +139,7 @@ contrail_output(struct mbuf *m, struct socket *so)
 
 	len = m_length(m, NULL);
 	/* If contiguous space in mbuf it can be passed directly */
-	if (m->m_len == m_length(m, NULL)) {
+	if (m->m_len == len) {
 		ret = vr_transport_request(so, mtod(m, char *), len);
 		if (ret) {
 			vr_log(VR_ERR, "Transport request failed, ret:%d\n",
@@ -150,6 +150,7 @@ contrail_output(struct mbuf *m, struct socket *so)
 		buf = malloc(len, M_VROUTER, M_NOWAIT|M_ZERO);
 		if (!buf) {
 			vr_log(VR_ERR, "Cannot allocate buffer\n");
+			m_freem(m);
 			return (-1);
 		}
 

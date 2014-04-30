@@ -105,7 +105,7 @@ vr_transport_request(struct socket *so, char *buf, size_t len)
 		if (m == NULL) {
 			vr_log(VR_ERR, "Cannot create mbuf\n");
 			vr_message_free(resp);
-			return(1);
+			return (1);
 		}
 		data = (caddr_t)resp->vr_message_buf - NETLINK_HEADER_LEN;
 		m->m_data = data;
