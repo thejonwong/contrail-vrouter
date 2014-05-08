@@ -49,6 +49,7 @@
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
+#include <machine/in_cksum.h>
 
 #include "vr_freebsd.h"
 #include "vr_proto.h"
@@ -787,6 +788,29 @@ vrouter_event_handler(struct module *module, int event, void *arg)
 	}
 
 	return(ret);
+}
+
+
+static int
+fh_csum_verify(struct mbuf *m, struct vr_ip *iph)
+{
+	int sum = in_pseudo(iph->ip_saddr, iph->ip_daddr, ntohs(iph->ip_len) - (iph->ip_hl * 4) + IPPROTO_TCP);
+	sum = in_pseudo(in_cksum_skip(m, m_length(m, NULL),0), sum, 0);
+	
+	if (sum) {
+		return -1;
+	}
+	return 0;
+}
+
+static void
+fh_handle_checksum_complete_mbuf(struct mbuf *m)
+{
+	if (m->m_pkthdr.csum_flags & CSUM_IP_CHECKED) {
+		m->m_pkthdr.csum_data = 0;
+		m->m_pkthdr.csum_flags &= ~CSUM_IP_CHECKED;
+		
+	}
 }
 
 static moduledata_t vrouter_mod = {
