@@ -794,10 +794,49 @@ vrouter_event_handler(struct module *module, int event, void *arg)
 static int
 fh_csum_verify(struct mbuf *m, struct vr_ip *iph)
 {
-	int sum = in_pseudo(iph->ip_saddr, iph->ip_daddr, ntohs(iph->ip_len) - (iph->ip_hl * 4) + IPPROTO_TCP);
-	sum = in_pseudo(in_cksum_skip(m, m_length(m, NULL),0), sum, 0);
-	
-	if (sum) {
+	u_int64_t sum, hdr_sum;
+	const int flags = CSUM_L4_CALC | CSUM_L4_VALID;
+		
+	KASSERT(m->m_pkthdr & M_PKTHDR, ("mbuf chain without pkthdr"));
+
+	/* XXX */
+	/* The rfc793 clearly states that length should omit 12 bytes
+	 * os pseudo header. Shouldn't we hardcode it then? (linux calculates)*/
+	hdr_sum = in_pseudo(iph->ip_saddr, iph->ip_daddr, (IPPROTO_TCP << 4) + (m->m_pkthdr.len - iph->ip_hl * 4i));
+
+	if ((m->m_pkthdr.csum_flags & flags) == flags) {
+		sum = in_pseudo(hdr_sum, m->m_pkthdr.csum_data, 0);
+	} else {
+		sum = in_pseudo(
+			in_cksum_skip(m, m->m_pkthdr.len, 0),
+			hdr_sum, 0);
+	}
+		
+	if (~sum) {
+		return -1;
+	}
+	return 0;
+}
+
+static int
+fh_csum_verify_udp(struct mbuf *m, struct vr_ip *iph)
+{
+	u_int64_t sum, hdr_sum;
+	const int flags = CSUM_L4_CALC | CSUM_L4_VALID;
+
+	KASSERT(m->m_pkthdr & M_PKTHDR, ("mbuf chain without pkthdr"));
+
+	hdr_sum = in_pseudo(iph->ip_saddr, iph->ip_daddr, (IPPROTO_UDP << 4) + m->m_pkthdr.len);
+
+	if ((m->m_pkthdr.csum_flags & flags) == flags) {
+		sum = in_pseudo(hdr_sum, m->m_pkthdr.csum_data, 0);
+	} else {
+		sum = in_pseudo(
+			in_cksum_skip(m, m->m_pkthdr.len, 0),
+			hdr_sum, 0);
+	}
+		
+	if (~sum) {
 		return -1;
 	}
 	return 0;
