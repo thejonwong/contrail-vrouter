@@ -299,9 +299,11 @@ fh_phead_len(struct vr_packet *pkt)
 static void
 fh_pset_data(struct vr_packet *pkt, unsigned short offset)
 {
+    struct mbuf *m;
+    m = vp_os_packet(pkt);
+    m->m_data = pkt->vp_head + offset;
 
-	vr_log(VR_ERR, "%s: not implemented\n", __func__);
-	return;
+    return;
 }
 
 static unsigned int
