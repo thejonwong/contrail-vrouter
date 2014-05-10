@@ -55,7 +55,7 @@ freebsd_get_packet(struct mbuf *m, struct vr_interface *vif)
 	struct vr_packet *pkt;
 	uint32_t bufsize;
 
-	wrapper = uma_zalloc(zone_vr_packet, M_NOWAIT);
+	wrapper = uma_zalloc(zone_vr_packet, M_NOWAIT | M_ZERO);
 	if (!wrapper) {
 		vr_log(VR_ERR, "cannot alloc wrapper");
 		return (NULL);
