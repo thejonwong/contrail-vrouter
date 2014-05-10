@@ -685,9 +685,9 @@ struct host_os freebsd_host = {
 	.hos_inner_network_header	= fh_inner_network_header,
 	.hos_data_at_offset		= fh_data_at_offset,
 	.hos_pheader_pointer		= fh_pheader_pointer,
-	.hos_pull_inner_headers		= fh_pull_inner_headers,
+	.hos_pull_inner_headers		= NULL, /* TODO(md): to implement */
 	.hos_pcow			= fh_pcow,
-	.hos_pull_inner_headers_fast	= fh_pull_inner_headers_fast,
+	.hos_pull_inner_headers_fast	= NULL, /* TODO(md): to implement */
 	.hos_get_udp_src_port		= fh_get_udp_src_port,
 	.hos_pkt_from_vm_tcp_mss_adj	= fh_pkt_from_vm_tcp_mss_adj,
 };
