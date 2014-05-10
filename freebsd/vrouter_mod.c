@@ -166,9 +166,30 @@ fh_palloc_head(struct vr_packet *pkt, unsigned int size)
 static struct vr_packet *
 fh_pexpand_head(struct vr_packet *pkt, unsigned int hspace)
 {
+	struct mbuf *m;
+	struct vr_packet_wrapper *wrapper = (struct vr_packet_wrapper *) pkt;
 
-	vr_log(VR_ERR, "%s: not implemented\n", __func__);
-	return (NULL);
+	m = vp_os_packet(pkt);
+	if (!m)
+		return NULL;
+
+	M_PREPEND(m, hspace, M_NOWAIT);
+	if (m == NULL)
+		return NULL;
+
+	pkt->vp_head = m->m_flags & M_EXT ? m->m_ext.ext_buf :
+		m->m_flags & M_PKTHDR ? m->m_pktdat : m->m_dat;
+	pkt->vp_data += hspace;
+	pkt->vp_tail += hspace;
+	pkt->vp_end = m->m_flags & M_EXT ? m->m_ext.ext_size :
+		((m->m_flags & M_PKTHDR) ? MHLEN : MLEN);
+
+	pkt->vp_network_h += hspace;
+	pkt->vp_inner_network_h += hspace;
+
+	wrapper->vrw_m = m;
+
+	return (pkt);
 }
 
 static void
