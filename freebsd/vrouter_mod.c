@@ -451,9 +451,18 @@ fh_data_at_offset(struct vr_packet *pkt, unsigned short off)
 static void *
 fh_pheader_pointer(struct vr_packet *pkt, unsigned short hdr_len, void *buf)
 {
+	int offset;
+	struct mbuf *m = vp_os_packet(pkt);
+	int hlen = m->m_len;
 
-	vr_log(VR_ERR, "%s: not implemented\n", __func__);
-	return (NULL);
+	offset = pkt->vp_data - M_LEADINGSPACE(m);
+
+	if (hlen - hdr_len >= offset)
+		return (mtodo(m, offset));
+
+	m_copydata(m, offset, hdr_len, buf);
+
+        return (buf);
 }
 
 static int
