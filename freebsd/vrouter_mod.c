@@ -148,9 +148,11 @@ fh_palloc(unsigned int size)
 {
 	struct mbuf *m;
 
-	m = m_get2(size, M_NOWAIT, MT_DATA, 0);
+	m = m_get2(size, M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (!m)
 	       return (NULL);
+
+	m->m_len = m->m_pkthdr.len = size;
 
 	return (freebsd_get_packet(m, NULL));
 }
@@ -264,6 +266,7 @@ fh_pcopy(unsigned char *dst, struct vr_packet *p_src,
 
 	m = vp_os_packet(p_src);
 	m_copydata(m, offset, len, (caddr_t)dst);
+	m->m_len = m->m_pkthdr.len = len;
 	return (len);
 }
 
