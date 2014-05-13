@@ -94,8 +94,8 @@ static struct vr_module modules[] = {
 /*
  * Enable changes for better performance
  */
-int vr_perfr = 1;    /* GRO */
-int vr_perfs = 1;    /* segmentation in software */
+int vr_perfr = 0;    /* GRO */
+int vr_perfs = 0;    /* segmentation in software */
 
 /*
  * Enable MPLS over UDP globally
@@ -105,8 +105,8 @@ int vr_mudp = 0;
 /*
  * TCP MSS adjust settings
  */
-int vr_from_vm_mss_adj = 1; /* adjust TCP MSS on packets from VM */
-int vr_to_vm_mss_adj = 1;   /* adjust TCP MSS on packet sent to VM */
+int vr_from_vm_mss_adj = 0; /* adjust TCP MSS on packets from VM */
+int vr_to_vm_mss_adj = 0;   /* adjust TCP MSS on packet sent to VM */
 
 /*
  * Following sysctls are to enable RPS. Based on empirical results,
@@ -157,7 +157,7 @@ int vr_perfp = 0;
 #endif
 #endif /* __linux__ */
 #if defined(__FreeBSD__)
-int vr_perfp = 1;
+int vr_perfp = 0;
 #endif
 /*
  * Following sysctls can be set if vrouter shouldn't pick a CPU for RPS

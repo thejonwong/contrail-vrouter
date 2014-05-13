@@ -40,6 +40,11 @@
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/if_media.h>
+#include <netinet/in.h>
+#include <netinet/ip.h>
+#include <netinet/ip_var.h>
+#include <net/ethernet.h>
+#include <machine/in_cksum.h>
 
 #include "vr_freebsd.h"
 #include "vr_packet.h"
@@ -222,6 +227,8 @@ freebsd_if_tx(struct vr_interface *vif, struct vr_packet *pkt)
 {
 	struct ifnet *ifp;
 	struct mbuf *m;
+	struct ip *ip;
+	int ip_off;
 	int ret = 0;
 
 	KASSERT((vif && pkt), ("Null argument: vif:%p pkt:%p\n", vif, pkt));
@@ -231,6 +238,18 @@ freebsd_if_tx(struct vr_interface *vif, struct vr_packet *pkt)
 
 	/* Fetch original mbuf from packet structure */
 	m = vp_os_packet(pkt);
+
+	ip_off = sizeof (struct ether_header);
+	ip = (struct ip *) (mtod(m, char *) + ip_off);
+	if (ip->ip_p == VR_IP_PROTO_GRE) {
+		ip->ip_sum = 0;
+		ip->ip_sum = in_cksum_hdr(ip);
+	}
+
+	if (vif->vif_type == VIF_TYPE_VIRTUAL) {
+		m->m_len -= pkt_data(pkt) - (unsigned char *)m->m_data;
+		m->m_data = (caddr_t)pkt_data(pkt);
+	}
 
 	/* Pass mbuf to driver for sending */
 	ret = ifp->if_transmit(ifp, m);

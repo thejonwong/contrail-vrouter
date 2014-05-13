@@ -58,6 +58,9 @@
 /* UMA zone for vr_packet */
 extern uma_zone_t zone_vr_packet;
 
+extern int vr_flow_entries;
+extern int vr_oflow_entries;
+
 /*
  * Overlay length used for TCP MSS adjust. For UDP outer header, overlay
  * len is 20 (IP header) + 8 (UDP) + 4 (MPLS). For GRE, it is 20 (IP header)
@@ -150,7 +153,7 @@ fh_palloc(unsigned int size)
 
 	m = m_get2(size, M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (!m)
-	       return (NULL);
+		return (NULL);
 
 	m->m_len = m->m_pkthdr.len = size;
 
@@ -170,17 +173,24 @@ fh_pexpand_head(struct vr_packet *pkt, unsigned int hspace)
 {
 	struct mbuf *m;
 	struct vr_packet_wrapper *wrapper = (struct vr_packet_wrapper *) pkt;
+	int offset;
 
 	m = vp_os_packet(pkt);
 	if (!m)
 		return NULL;
 
+	offset = M_LEADINGSPACE(m);
 	M_PREPEND(m, hspace, M_NOWAIT);
 	if (m == NULL)
 		return NULL;
 
-	pkt->vp_head = m->m_flags & M_EXT ? m->m_ext.ext_buf :
-		m->m_flags & M_PKTHDR ? m->m_pktdat : m->m_dat;
+	//XXX workaround
+	m = m_defrag(m, M_NOWAIT);
+	hspace -= offset;
+
+	pkt->vp_head =
+	    (unsigned char *)(m->m_flags & M_EXT ? m->m_ext.ext_buf :
+	    m->m_flags & M_PKTHDR ? m->m_pktdat : m->m_dat);
 	pkt->vp_data += hspace;
 	pkt->vp_tail += hspace;
 	pkt->vp_end = m->m_flags & M_EXT ? m->m_ext.ext_size :
@@ -299,11 +309,12 @@ fh_phead_len(struct vr_packet *pkt)
 static void
 fh_pset_data(struct vr_packet *pkt, unsigned short offset)
 {
-    struct mbuf *m;
-    m = vp_os_packet(pkt);
-    m->m_data = pkt->vp_head + offset;
+	struct mbuf *m;
 
-    return;
+	m = vp_os_packet(pkt);
+	m->m_data = (caddr_t)(pkt->vp_head + offset);
+
+	return;
 }
 
 static unsigned int
@@ -462,7 +473,7 @@ fh_pheader_pointer(struct vr_packet *pkt, unsigned short hdr_len, void *buf)
 
 	m_copydata(m, offset, hdr_len, buf);
 
-        return (buf);
+	return (buf);
 }
 
 static int
@@ -551,7 +562,7 @@ fh_adjust_tcp_mss(struct tcphdr *tcph, struct mbuf *m)
 				return;
 			max_mss = ifp->if_mtu -
 			    (VROUTER_OVERLAY_LEN + sizeof(struct vr_ip) +
-			     sizeof(struct tcphdr));
+			    sizeof(struct tcphdr));
 
 			if (pkt_mss > max_mss) {
 				if ((m->m_pkthdr.csum_flags & CSUM_TCP) == 0) {
@@ -589,8 +600,9 @@ fh_reset_mbuf_fields(struct vr_packet *pkt)
 	m = vp_os_packet(pkt);
 	KASSERT(m, ("NULL mbuf"));
 
-	pkt->vp_head = m->m_flags & M_EXT ? m->m_ext.ext_buf :
-	    m->m_flags & M_PKTHDR ? m->m_pktdat : m->m_dat;
+	pkt->vp_head =
+	    (unsigned char *)(m->m_flags & M_EXT ? m->m_ext.ext_buf :
+	    m->m_flags & M_PKTHDR ? m->m_pktdat : m->m_dat);
 	pkt->vp_data = M_LEADINGSPACE(m);
 
 	pkt->vp_tail = M_LEADINGSPACE(m) + m->m_len;
@@ -807,6 +819,9 @@ vrouter_event_handler(struct module *module, int event, void *arg)
 	switch (event)
 	{
 	case MOD_LOAD:
+		vr_flow_entries = 4096 ;
+		vr_oflow_entries = 512;
+
 		ret = vrouter_freebsd_init();
 		if (ret) {
 			vr_log(VR_ERR, "vrouter load failed: %d\n", ret);
