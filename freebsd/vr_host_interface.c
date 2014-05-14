@@ -239,16 +239,15 @@ freebsd_if_tx(struct vr_interface *vif, struct vr_packet *pkt)
 	/* Fetch original mbuf from packet structure */
 	m = vp_os_packet(pkt);
 
+	/* Trim mbuf if vp_data is not at the beginning */
+	if (pkt->vp_data != M_LEADINGSPACE(m))
+		m_adj(m, pkt->vp_data - M_LEADINGSPACE(m));
+
 	ip_off = sizeof (struct ether_header);
 	ip = (struct ip *) (mtod(m, char *) + ip_off);
 	if (ip->ip_p == VR_IP_PROTO_GRE) {
 		ip->ip_sum = 0;
 		ip->ip_sum = in_cksum_hdr(ip);
-	}
-
-	if (vif->vif_type == VIF_TYPE_VIRTUAL) {
-		m->m_len -= pkt_data(pkt) - (unsigned char *)m->m_data;
-		m->m_data = (caddr_t)pkt_data(pkt);
 	}
 
 	/* Pass mbuf to driver for sending */
