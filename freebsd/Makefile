@@ -46,7 +46,7 @@ SRCS += vr_message.c \
        vr_packet.c \
        vr_proto_ip.c \
        vr_mpls.c \
-       vnsw_ip4_mtrie.c \
+       vr_ip4_mtrie.c \
        vr_response.c \
        vr_flow.c \
        vr_mirror.c \
