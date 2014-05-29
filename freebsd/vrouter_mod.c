@@ -153,7 +153,7 @@ fh_palloc(unsigned int size)
 
 	m = m_get2(size, M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (!m)
-	       return (NULL);
+		return (NULL);
 
 	m->m_len = m->m_pkthdr.len = size;
 
@@ -302,11 +302,12 @@ fh_phead_len(struct vr_packet *pkt)
 static void
 fh_pset_data(struct vr_packet *pkt, unsigned short offset)
 {
-    struct mbuf *m;
-    m = vp_os_packet(pkt);
-    m->m_data = pkt->vp_head + offset;
+	struct mbuf *m;
 
-    return;
+	m = vp_os_packet(pkt);
+	m->m_data = (caddr_t)(pkt->vp_head + offset);
+
+	return;
 }
 
 static unsigned int
@@ -465,7 +466,7 @@ fh_pheader_pointer(struct vr_packet *pkt, unsigned short hdr_len, void *buf)
 
 	m_copydata(m, offset, hdr_len, buf);
 
-        return (buf);
+	return (buf);
 }
 
 static int
@@ -554,7 +555,7 @@ fh_adjust_tcp_mss(struct tcphdr *tcph, struct mbuf *m)
 				return;
 			max_mss = ifp->if_mtu -
 			    (VROUTER_OVERLAY_LEN + sizeof(struct vr_ip) +
-			     sizeof(struct tcphdr));
+			    sizeof(struct tcphdr));
 
 			if (pkt_mss > max_mss) {
 				if ((m->m_pkthdr.csum_flags & CSUM_TCP) == 0) {
@@ -592,8 +593,9 @@ fh_reset_mbuf_fields(struct vr_packet *pkt)
 	m = vp_os_packet(pkt);
 	KASSERT(m, ("NULL mbuf"));
 
-	pkt->vp_head = m->m_flags & M_EXT ? m->m_ext.ext_buf :
-	    m->m_flags & M_PKTHDR ? m->m_pktdat : m->m_dat;
+	pkt->vp_head =
+	    (unsigned char *)(m->m_flags & M_EXT ? m->m_ext.ext_buf :
+	    m->m_flags & M_PKTHDR ? m->m_pktdat : m->m_dat);
 	pkt->vp_data = M_LEADINGSPACE(m);
 
 	pkt->vp_tail = M_LEADINGSPACE(m) + m->m_len;
