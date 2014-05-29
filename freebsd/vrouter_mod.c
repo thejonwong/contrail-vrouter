@@ -58,6 +58,9 @@
 /* UMA zone for vr_packet */
 extern uma_zone_t zone_vr_packet;
 
+extern int vr_flow_entries;
+extern int vr_oflow_entries;
+
 /*
  * Overlay length used for TCP MSS adjust. For UDP outer header, overlay
  * len is 20 (IP header) + 8 (UDP) + 4 (MPLS). For GRE, it is 20 (IP header)
@@ -807,6 +810,9 @@ vrouter_event_handler(struct module *module, int event, void *arg)
 	switch (event)
 	{
 	case MOD_LOAD:
+		vr_flow_entries = 4096;
+		vr_oflow_entries = 512;
+
 		ret = vrouter_freebsd_init();
 		if (ret) {
 			vr_log(VR_ERR, "vrouter load failed: %d\n", ret);
