@@ -62,13 +62,15 @@ bsd_trans_free(char *buf)
 	free(buf - NETLINK_HEADER_LEN, M_VROUTER);
 }
 
-static void
+static int
 bsd_trans_ext_free(struct mbuf *m, void *arg1, void* arg2)
 {
 	char *buf = (char *)arg1;
 
 	KASSERT((buf != NULL), ("Cannot free NULLed buf"));
 	free(buf - NETLINK_HEADER_LEN, M_VROUTER);
+
+	return (0);
 }
 
 static struct vr_mtransport bsd_transport = {
