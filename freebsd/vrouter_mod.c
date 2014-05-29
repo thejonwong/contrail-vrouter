@@ -173,17 +173,24 @@ fh_pexpand_head(struct vr_packet *pkt, unsigned int hspace)
 {
 	struct mbuf *m;
 	struct vr_packet_wrapper *wrapper = (struct vr_packet_wrapper *) pkt;
+	int offset;
 
 	m = vp_os_packet(pkt);
 	if (!m)
 		return NULL;
 
+	offset = M_LEADINGSPACE(m);
 	M_PREPEND(m, hspace, M_NOWAIT);
 	if (m == NULL)
 		return NULL;
 
-	pkt->vp_head = m->m_flags & M_EXT ? m->m_ext.ext_buf :
-		m->m_flags & M_PKTHDR ? m->m_pktdat : m->m_dat;
+	/* Data must be continuous, so mbuf must be defragged */
+	m = m_defrag(m, M_NOWAIT);
+	hspace -= offset;
+
+	pkt->vp_head =
+	    (unsigned char *)(m->m_flags & M_EXT ? m->m_ext.ext_buf :
+	    m->m_flags & M_PKTHDR ? m->m_pktdat : m->m_dat);
 	pkt->vp_data += hspace;
 	pkt->vp_tail += hspace;
 	pkt->vp_end = m->m_flags & M_EXT ? m->m_ext.ext_size :
