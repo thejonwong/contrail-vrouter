@@ -119,6 +119,7 @@ struct vr_interface {
     struct napi_struct vr_napi;
     struct sk_buff_head vr_skb_inputq;
 #elif defined(__FreeBSD__)
+    struct mbuf;
     void (*saved_if_input) (struct ifnet *, struct mbuf *);
 #endif
 #endif

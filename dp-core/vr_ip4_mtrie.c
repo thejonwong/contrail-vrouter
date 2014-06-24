@@ -948,10 +948,10 @@ cleanup:
     if (!i)
         return ret;
 
-    for (--i; i >= 0; i--) {
-        if (mtrie_vrf_stats[i]) {
-            vr_free(mtrie_vrf_stats[i]);
-            mtrie_vrf_stats[i] = NULL;
+    for (; i > 0; i--) {
+        if (mtrie_vrf_stats[i - 1]) {
+            vr_free(mtrie_vrf_stats[i - 1]);
+            mtrie_vrf_stats[i - 1] = NULL;
         }
     }
 

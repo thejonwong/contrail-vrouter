@@ -90,7 +90,7 @@ vr_get_hentry_by_index(vr_htable_t htable, unsigned int index)
 {
     struct vr_htable *table = (struct vr_htable *)htable;
 
-    if (!table || index < 0)
+    if (!table)
         return NULL;
 
     if (index < table->hentries)

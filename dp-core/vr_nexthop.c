@@ -1599,8 +1599,7 @@ nh_composite_add(struct vr_nexthop *nh, vr_nexthop_req *req)
         nh->nh_component_cnt = 0;
     }
 
-    if ((req->nhr_nh_list_size < 0) || 
-            (req->nhr_nh_list_size != req->nhr_label_list_size))
+    if (req->nhr_nh_list_size != req->nhr_label_list_size)
         return -EINVAL;
 
     /* Nh list of size 0 is valid */
