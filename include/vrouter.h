@@ -191,6 +191,7 @@ extern struct host_os *vrouter_host;
 extern struct vrouter *vrouter_get(unsigned int);
 extern int vrouter_init(void);
 extern int vr_module_error(int, const char *, int, int);
+extern int vhost_init(void);
 
 #ifdef __cplusplus
 }
