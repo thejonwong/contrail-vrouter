@@ -58,6 +58,9 @@
 /* UMA zone for vr_packet */
 extern uma_zone_t zone_vr_packet;
 
+/* Prototypes */
+struct host_os *vrouter_get_host(void);
+
 /*
  * Overlay length used for TCP MSS adjust. For UDP outer header, overlay
  * len is 20 (IP header) + 8 (UDP) + 4 (MPLS). For GRE, it is 20 (IP header)

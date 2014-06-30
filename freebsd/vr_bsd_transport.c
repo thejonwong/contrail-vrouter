@@ -88,7 +88,6 @@ vr_transport_request(struct socket *so, char *buf, size_t len)
 	struct nlattr *nla;
 	caddr_t data;
 	uint32_t multi_flag;
-	int i;
 	int ret;
 
 	request.vr_message_buf = buf + NETLINK_HEADER_LEN;
