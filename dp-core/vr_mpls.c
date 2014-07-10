@@ -10,6 +10,10 @@
 #include "vr_sandesh.h"
 #include "vr_mpls.h"
 
+int vr_mpls_input(struct vrouter *, struct vr_packet *,
+        struct vr_forwarding_md *);
+int vr_mpls_del(vr_mpls_req *);
+
 struct vr_nexthop *
 __vrouter_get_label(struct vrouter *router, unsigned int label)
 {

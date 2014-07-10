@@ -10,6 +10,12 @@
 #include "vr_sandesh.h"
 #include "vr_vxlan.h"
 
+int vr_vxlan_trav_cb(unsigned int, void *, void *);
+int vr_vxlan_dump(vr_vxlan_req *);
+int vr_vxlan_get(vr_vxlan_req *);
+int vr_vxlan_del(vr_vxlan_req *);
+int vr_vxlan_add(vr_vxlan_req *);
+
 int
 vr_vxlan_input(struct vrouter *router, struct vr_packet *pkt, 
                                 struct vr_forwarding_md *fmd)

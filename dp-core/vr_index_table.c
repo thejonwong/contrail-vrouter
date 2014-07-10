@@ -18,6 +18,8 @@ struct vr_itbl {
     void **data;
 };
 
+void vr_print_table_struct(vr_itable_t);
+
 static int
 vr_stride_empty(void **ptr, unsigned int cnt)
 {

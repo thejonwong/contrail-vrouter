@@ -39,6 +39,11 @@
 #include "vrouter.h"
 #include "vr_flow.h"
 
+int flowopen(struct cdev *, int, int, struct thread *);
+int flowmmap(struct cdev *, vm_ooffset_t, vm_paddr_t *, int, vm_memattr_t *);
+void vr_mem_exit(void);
+int vr_mem_init(void);
+
 int
 flowopen(struct cdev *dev __unused, int flags, int fmt __unused,
     struct thread *td)
