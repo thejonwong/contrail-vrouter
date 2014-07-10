@@ -9,6 +9,9 @@
 #include <vr_packet.h>
 #include "vr_message.h"
 
+void vr_stats_exit(struct vrouter *, bool);
+int vr_stats_init(struct vrouter *);
+
 static void
 vr_drop_stats_fill_response(vr_drop_stats_req *response,
         struct vr_drop_stats *stats)

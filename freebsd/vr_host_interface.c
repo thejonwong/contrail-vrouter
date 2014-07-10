@@ -48,6 +48,10 @@
 /* UMA zone for vr_packet */
 uma_zone_t zone_vr_packet;
 
+void vr_host_vif_init(struct vrouter *);
+void vr_host_interface_exit(void);
+struct vr_host_interface_ops *vr_host_interface_init(void);
+
 struct vr_packet *
 freebsd_get_packet(struct mbuf *m, struct vr_interface *vif)
 {

@@ -15,6 +15,16 @@ extern struct vr_nexthop *(*vr_inet_route_lookup)(unsigned int,
 extern int vr_mpls_input(struct vrouter *, struct vr_packet *,
         struct vr_forwarding_md *);
 
+struct vr_nexthop *vr_inet_src_lookup(unsigned short, struct vr_ip *, struct vr_packet *);
+int vr_forward(struct vrouter *, unsigned short, struct vr_packet *, struct vr_forwarding_md *);
+unsigned int vr_udp_input(struct vr_ip *, struct vrouter *, struct vr_packet *,
+    struct vr_forwarding_md *);
+int vr_ip_input(struct vrouter *, unsigned short, struct vr_packet *,
+    struct vr_forwarding_md *);
+unsigned int vr_gre_input(struct vrouter *, struct vr_packet *,
+        struct vr_forwarding_md *);
+void vr_ip_update_csum(struct vr_packet *, unsigned int, unsigned int);
+
 static unsigned short vr_ip_id;
 
 unsigned short
@@ -284,8 +294,10 @@ vr_ip_rcv(struct vrouter *router, struct vr_packet *pkt,
         }
 
         if (!vif && !(vif = pkt->vp_if->vif_bridge) &&
-                                !(vif = router->vr_host_if))
+                                !(vif = router->vr_host_if)) {
+            drop_reason = VP_DROP_TRAP_NO_IF;
             goto drop_pkt;
+        }
 
         if ((pkt->vp_flags & VP_FLAG_FROM_DP) ||
                 !vr_phead_len(pkt)) {

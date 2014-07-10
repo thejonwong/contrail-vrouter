@@ -27,6 +27,7 @@ struct host_os *vrouter_host;
 extern struct host_os *vrouter_get_host(void);
 extern int vr_stats_init(struct vrouter *);
 extern void vr_stats_exit(struct vrouter *, bool);
+void vrouter_exit(bool soft_reset);
 
 volatile bool vr_not_ready = true;
 

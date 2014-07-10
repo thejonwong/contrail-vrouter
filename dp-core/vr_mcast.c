@@ -40,6 +40,11 @@ unsigned int vr_mcast_oentries = VR_DEF_MCAST_OENTRIES;
 static vr_htable_t vn_rtable;
 extern struct vr_nexthop *ip4_default_nh;
 
+struct vr_mcast_entry *vr_find_mcast_entry(struct vr_mcast_entry_key *);
+struct vr_mcast_entry *vr_find_free_mcast_entry(struct vr_mcast_entry_key *);
+void mcast_algo_deinit(struct vr_rtable *, struct rtable_fspec *, bool);
+int mcast_algo_init(struct vr_rtable *, struct rtable_fspec *);
+
 static bool
 mcast_entry_valid(vr_htable_t htable, vr_hentry_t hentry,
                                               unsigned int index)

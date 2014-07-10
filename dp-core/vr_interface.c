@@ -16,6 +16,12 @@ static struct vr_host_interface_ops *hif_ops;
 static int eth_srx(struct vr_interface *, struct vr_packet *, unsigned short);
 static int eth_rx(struct vr_interface *, struct vr_packet *, unsigned short);
 
+void vif_attach(struct vr_interface *);
+void vif_detach(struct vr_interface *);
+int vr_gro_vif_add(struct vrouter *, unsigned int);
+struct vr_interface_stats *vif_get_stats(struct vr_interface *, unsigned short);
+struct vr_interface *__vrouter_get_interface_os(struct vrouter *, unsigned int);
+
 extern struct vr_host_interface_ops *vr_host_interface_init(void);
 extern void  vr_host_interface_exit(void);
 extern void vr_host_vif_init(struct vrouter *);
