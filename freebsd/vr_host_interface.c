@@ -252,6 +252,8 @@ freebsd_if_tx(struct vr_interface *vif, struct vr_packet *pkt)
 	eh = mtod(m, struct ether_header *);
 	type = ntohs(eh->ether_type);
 	ip_off = sizeof (struct ether_header);
+	if (m->m_len < ip_off + sizeof(struct ip))
+		m = m_pullup(m, ip_off + sizeof(struct ip));
 	ip = (struct ip *) (mtod(m, char *) + ip_off);
 	if (ip->ip_p == VR_IP_PROTO_GRE) {
 		ip->ip_sum = 0;
@@ -273,8 +275,6 @@ freebsd_if_tx(struct vr_interface *vif, struct vr_packet *pkt)
 		ret = ip_fragment(ip, &m, ifp->if_mtu - OUTER_HEADER, ifp->if_hwassist);
 		for (; m; m = m0) {
 			m0 = m->m_nextpkt;
-			m->m_nextpkt = 0;
-
 			m_clrprotoflags(m);
 
 			/* Modify innef header checksum */
@@ -288,22 +288,18 @@ freebsd_if_tx(struct vr_interface *vif, struct vr_packet *pkt)
 			bcopy(header, mtod(m, caddr_t), OUTER_HEADER + sizeof(struct vr_eth));
 
 			/* Update outer header checksum */
-			ip = (struct ip *) (mtod(m, char *) + ETHER_HDR_LEN);
+			ip = (struct ip *) (mtod(m, char *) + sizeof(struct vr_eth));
 			ip->ip_len = htons(len + OUTER_HEADER);
 			ip->ip_sum = 0;
 			ip->ip_sum = in_cksum_hdr(ip);
-
-			ret = ifp->if_transmit(ifp, m);
-			if (ret)
-				vr_log(VR_ERR, "if_transmit failed, ret:%d\n", ret);
-
 		}
-	} else {
-		/* Pass mbuf to driver for sending */
-		ret = ifp->if_transmit(ifp, m);
-		if (ret)
-			vr_log(VR_ERR, "if_transmit failed, ret:%d\n", ret);
 	}
+
+	/* Pass mbuf to driver for sending */
+	ret = ifp->if_transmit(ifp, m);
+	if (ret)
+		vr_log(VR_ERR, "if_transmit failed, ret:%d\n", ret);
+
 
 	/* Free packet */
 	uma_zfree(zone_vr_packet, pkt);

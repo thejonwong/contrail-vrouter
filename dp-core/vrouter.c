@@ -90,7 +90,10 @@ static struct vr_module modules[] = {
 
 
 #define VR_NUM_MODULES  (sizeof(modules) / sizeof(modules[0]))
-
+/*
+ * TODO For BSD we turn off all performance tweaks for now, it will
+ * be implemented later.
+ */
 /*
  * Enable changes for better performance
  */

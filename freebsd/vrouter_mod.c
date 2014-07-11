@@ -819,6 +819,7 @@ vrouter_event_handler(struct module *module, int event, void *arg)
 	switch (event)
 	{
 	case MOD_LOAD:
+		/* Make size of flow tables the same as linux defaults */
 		vr_flow_entries = 4096;
 		vr_oflow_entries = 512;
 
