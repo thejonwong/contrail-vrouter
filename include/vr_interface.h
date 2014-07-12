@@ -190,6 +190,8 @@ extern int vif_vrf_table_get(struct vr_interface *, vr_vrf_assign_req *);
 extern unsigned int vif_vrf_table_get_nh(struct vr_interface *, unsigned short);
 extern int vif_vrf_table_set(struct vr_interface *, unsigned int,
         short, unsigned short);
+#if defined(__linux__)
 extern void vr_set_vif_ptr(struct net_device *dev, void *vif);
+#endif
 
 #endif /* __VR_INTERFACE_H__ */

@@ -70,3 +70,4 @@ clean:
 
 .include <bsd.kmod.mk>
 
+CFLAGS += -Wno-error=missing-prototypes
