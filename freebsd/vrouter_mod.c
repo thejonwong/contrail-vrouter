@@ -479,28 +479,7 @@ fh_pheader_pointer(struct vr_packet *pkt, unsigned short hdr_len, void *buf)
 }
 
 static int
-fh_pull_inner_headers(struct vr_ip *outer_iph, struct vr_packet *pkt,
-    unsigned short ip_proto, unsigned short *reason,
-    int (*tunnel_type_cb)(unsigned int, unsigned int, unsigned short *))
-{
-
-	vr_log(VR_ERR, "%s: not implemented\n", __func__);
-	return (0);
-}
-
-static int
 fh_pcow(struct vr_packet *pkt, unsigned short head_room)
-{
-
-	vr_log(VR_ERR, "%s: not implemented\n", __func__);
-	return (0);
-}
-
-static int
-fh_pull_inner_headers_fast(struct vr_ip *iph, struct vr_packet *pkt,
-    unsigned char proto,
-    int (*tunnel_type_cb)(unsigned int, unsigned int, unsigned short *),
-    int *ret, int *encap_type)
 {
 
 	vr_log(VR_ERR, "%s: not implemented\n", __func__);
