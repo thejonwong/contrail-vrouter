@@ -171,16 +171,26 @@ vr_get_flow_entry(struct vrouter *router, int index)
 }
 
 static inline void
-vr_get_flow_key(struct vr_flow_key *key, unsigned short vrf, struct vr_ip *ip,
-        unsigned short sport, unsigned short dport)
+vr_get_flow_key(struct vr_flow_key *key, uint16_t vlan, struct vr_packet *pkt,
+        struct vr_ip *ip, unsigned short sport, unsigned short dport)
 {
     unsigned short *t_hdr;
+    unsigned short nh_id;
 
     /* copy both source and destinations */
     memcpy(&key->key_src_ip, &ip->ip_saddr, 2 * sizeof(ip->ip_saddr));
     key->key_proto = ip->ip_proto;
     key->key_zero = 0;
-    key->key_vrf_id = vrf;
+
+    if (vif_is_fabric(pkt->vp_if) && pkt->vp_nh) {
+        nh_id = pkt->vp_nh->nh_id;
+    } else if (vif_is_service(pkt->vp_if)) {
+        nh_id = vif_vrf_table_get_nh(pkt->vp_if, vlan);
+    } else {
+        nh_id = pkt->vp_if->vif_nh_id;
+    }
+
+    key->key_nh_id = nh_id;
 
     /* extract port information */
     t_hdr = (unsigned short *)((char *)ip + (ip->ip_hl * 4));
@@ -479,10 +489,13 @@ vr_flow_action(struct vrouter *router, struct vr_flow_entry *fe,
     unsigned short vrf;
     struct vr_forwarding_md mirror_fmd;
     struct vr_nexthop *src_nh;
+    struct vr_packet *pkt_clone;
 
-    vrf = fe->fe_key.key_vrf_id;
-    if (fe->fe_flags & VR_FLOW_FLAG_VRFT)
-        vrf = fe->fe_dvrf;
+    vrf = fe->fe_vrf;
+    /*
+     * for now, we will not use dvrf if VRFT is set, because the RPF
+     * check needs to happen in the source vrf
+     */
 
     vr_flow_set_forwarding_md(router, fe, index, fmd);
     src_nh = __vrouter_get_nexthop(router, fe->fe_src_nh_index);
@@ -498,17 +511,23 @@ vr_flow_action(struct vrouter *router, struct vr_flow_entry *fe,
             return 0;
         }
 
-#if 0
-        if (valid_src == NH_SOURCE_MISMATCH)
-            return vr_trap(pkt, vrf,
-                    AGENT_TRAP_SOURCE_MISMATCH, &fmd->fmd_flow_index);
-#else
-        if (valid_src == NH_SOURCE_MISMATCH)
-            return vr_trap(pkt, vrf,
-                    AGENT_TRAP_ECMP_RESOLVE, &fmd->fmd_flow_index);
-#endif
+        if (valid_src == NH_SOURCE_MISMATCH) {
+            pkt_clone = vr_pclone(pkt);
+            if (pkt_clone) {
+                if (vr_pcow(pkt_clone, sizeof(struct vr_eth) +
+                            sizeof(struct agent_hdr))) {
+                    vr_pfree(pkt_clone, VP_DROP_PCOW_FAIL);
+                } else {
+                    vr_trap(pkt_clone, vrf,
+                            AGENT_TRAP_ECMP_RESOLVE, &fmd->fmd_flow_index);
+                }
+            }
+        }
     }
 
+
+    if (fe->fe_flags & VR_FLOW_FLAG_VRFT)
+        vrf = fe->fe_dvrf;
 
     if (fe->fe_flags & VR_FLOW_FLAG_MIRROR) {
         if (fe->fe_mirror_id < VR_MAX_MIRROR_INDICES) {
@@ -551,6 +570,7 @@ vr_trap_flow(struct vrouter *router, struct vr_flow_entry *fe,
 {
     unsigned int trap_reason;
     struct vr_packet *npkt;
+    struct vr_flow_trap_arg ta;
 
     npkt = vr_pclone(pkt);
     if (!npkt)
@@ -559,17 +579,15 @@ vr_trap_flow(struct vrouter *router, struct vr_flow_entry *fe,
     vr_preset(npkt);
 
     switch (fe->fe_flags & VR_FLOW_FLAG_TRAP_MASK) {
-    case VR_FLOW_FLAG_TRAP_ECMP:
-        trap_reason = AGENT_TRAP_ECMP_RESOLVE;
-        break;
-
     default:
         trap_reason = AGENT_TRAP_FLOW_MISS;
+        ta.vfta_index = index;
+        ta.vfta_nh_index = fe->fe_key.key_nh_id;
         break;
     }
 
 
-    return vr_trap(npkt, fe->fe_key.key_vrf_id, trap_reason, &index);
+    return vr_trap(npkt, fe->fe_vrf, trap_reason, &ta);
 }
 
 static int
@@ -673,6 +691,7 @@ vr_flow_lookup(struct vrouter *router, unsigned short vrf,
             return 0;
         }
 
+        flow_e->fe_vrf = vrf;
         /* mark as hold */
         vr_flow_entry_set_hold(router, flow_e);
         vr_do_flow_action(router, flow_e, fe_index, pkt, proto, fmd);
@@ -729,7 +748,7 @@ vr_flow_parse(struct vrouter *router, struct vr_flow_key *key,
             * for VMs that are not in the fabric VRF. dhcp refresh packets will
             * anyway hit the route entry and get trapped from there.
             */
-            if (vif_is_virtual(pkt->vp_if)) {
+            if (vif_is_virtual(pkt->vp_if) && vif_dhcp_enabled(pkt->vp_if)) {
                 proto_port = (key->key_proto << VR_FLOW_PROTO_SHIFT) |
                     key->key_src_port;
                 if (proto_port == VR_UDP_DHCP_CPORT) {
@@ -810,7 +829,7 @@ vr_flow_inet_input(struct vrouter *router, unsigned short vrf,
 
     if (key_p) {
         /* we have everything to make a key */
-        vr_get_flow_key(key_p, vrf, ip, sport, dport);
+        vr_get_flow_key(key_p, fmd->fmd_vlan, pkt, ip, sport, dport);
         flow_parse_res = vr_flow_parse(router, key_p, pkt, &trap_res);
         if (flow_parse_res == VR_FLOW_LOOKUP && vr_ip_fragment_head(ip))
             vr_fragment_add(router, vrf, ip, key_p->key_src_port,
@@ -990,7 +1009,7 @@ vr_add_flow_req(vr_flow_req *req, unsigned int *fe_index)
     key.key_dst_port = req->fr_flow_dport;
     key.key_src_ip = req->fr_flow_sip;
     key.key_dest_ip = req->fr_flow_dip;
-    key.key_vrf_id = req->fr_flow_vrf;
+    key.key_nh_id = req->fr_flow_nh_id;
     key.key_proto = req->fr_flow_proto;
     key.key_zero = 0;
 
@@ -1016,7 +1035,7 @@ vr_flow_req_is_invalid(struct vrouter *router, vr_flow_req *req,
                 (unsigned int)req->fr_flow_dip != fe->fe_key.key_dest_ip ||
                 (unsigned short)req->fr_flow_sport != fe->fe_key.key_src_port ||
                 (unsigned short)req->fr_flow_dport != fe->fe_key.key_dst_port||
-                (unsigned short)req->fr_flow_vrf != fe->fe_key.key_vrf_id ||
+                (unsigned short)req->fr_flow_nh_id != fe->fe_key.key_nh_id ||
                 (unsigned char)req->fr_flow_proto != fe->fe_key.key_proto) {
             return -EBADF;
         }
@@ -1132,6 +1151,7 @@ vr_flow_set(struct vrouter *router, vr_flow_req *req)
             fe->fe_rflow = -1;
     }
 
+    fe->fe_vrf = req->fr_flow_vrf;
     if (req->fr_flags & VR_FLOW_FLAG_VRFT) 
         fe->fe_dvrf = req->fr_flow_dvrf;
 
