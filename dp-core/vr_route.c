@@ -18,6 +18,14 @@ extern void mcast_algo_deinit(struct vr_rtable *, struct rtable_fspec *, bool);
 extern int bridge_table_init(struct vr_rtable *, struct rtable_fspec *);
 extern void bridge_table_deinit(struct vr_rtable *, struct rtable_fspec *, bool);
 
+int vr_route_delete(vr_route_req *);
+int vr_route_get(vr_route_req *);
+int vr_route_dump(vr_route_req *);
+int inet_route_add(struct rtable_fspec *, struct vr_route_req *);
+int inet_route_del(struct rtable_fspec *, struct vr_route_req *);
+int bridge_entry_add(struct rtable_fspec *, struct vr_route_req *);
+int bridge_entry_del(struct rtable_fspec *, struct vr_route_req *);
+
 
 static struct rtable_fspec *
 vr_get_family(unsigned int family)

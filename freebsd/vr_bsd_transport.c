@@ -70,7 +70,7 @@ bsd_trans_ext_free(struct mbuf *m, void *arg1, void* arg2)
 	KASSERT((buf != NULL), ("Cannot free NULLed buf"));
 	free(buf - NETLINK_HEADER_LEN, M_VROUTER);
 
-	return (0);
+    return 0;
 }
 
 static struct vr_mtransport bsd_transport = {
@@ -88,7 +88,6 @@ vr_transport_request(struct socket *so, char *buf, size_t len)
 	struct nlattr *nla;
 	caddr_t data;
 	uint32_t multi_flag;
-	int i;
 	int ret;
 
 	request.vr_message_buf = buf + NETLINK_HEADER_LEN;

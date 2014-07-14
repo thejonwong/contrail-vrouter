@@ -21,6 +21,9 @@ struct vr_vrf_stats *(*vr_inet_vrf_stats)(unsigned short, unsigned int);
 
 static struct ip4_mtrie *mtrie_alloc_vrf(unsigned int);
 
+int mtrie4_algo_init(struct vr_rtable *, struct rtable_fspec *);
+void mtrie4_algo_deinit(struct vr_rtable *, struct rtable_fspec *, bool);
+
 /* mtrie specific */
 #define IP4_BKT_LEVELS  4 /* 8/8/8/8 */
 struct mtrie_bkt_info ip4_bkt_info[IP4_BKT_LEVELS] = {
@@ -948,10 +951,10 @@ cleanup:
     if (!i)
         return ret;
 
-    for (--i; i >= 0; i--) {
-        if (mtrie_vrf_stats[i]) {
-            vr_free(mtrie_vrf_stats[i]);
-            mtrie_vrf_stats[i] = NULL;
+    for (; i > 0; i--) {
+        if (mtrie_vrf_stats[i - 1]) {
+            vr_free(mtrie_vrf_stats[i - 1]);
+            mtrie_vrf_stats[i - 1] = NULL;
         }
     }
 

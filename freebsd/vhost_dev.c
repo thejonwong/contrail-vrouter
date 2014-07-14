@@ -37,7 +37,6 @@
 
 #include <net/if.h>
 #include <net/if_var.h>
-#include <net/if_dl.h>
 #include <net/if_clone.h>
 #include <net/if_types.h>
 #include <net/ethernet.h>
@@ -116,13 +115,6 @@ vhost_if_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	return (error);
 }
 
-static void
-vhost_if_input(struct ifnet *ifp, struct mbuf *m)
-{
-
-	KASSERT(0, ("%s: ifp:%p m:%p", __func__, ifp, m));
-}
-
 static int
 vhost_clone_match(struct if_clone *ifc, const char *name)
 {
@@ -140,7 +132,6 @@ vhost_clone_create(struct if_clone *ifc, char *name, size_t len,
 {
 	struct vhost_priv *sc;
 	struct ifnet *ifp;
-	struct sockaddr_dl *sdl;
 
 	sc = malloc(sizeof(*sc), M_VROUTER, M_WAITOK|M_ZERO);
 

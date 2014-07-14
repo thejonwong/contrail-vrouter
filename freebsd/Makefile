@@ -12,9 +12,6 @@ BUILD_DIR := ../../build/debug
 # Name of module
 KMOD = vrouter
 
-# XXX remove just to compile despite warning in dp-core
-CWARNFLAGS = -Wno-error
-
 # BSD module sources
 SRCS =	vrouter_mod.c \
 	vhost_dev.c \

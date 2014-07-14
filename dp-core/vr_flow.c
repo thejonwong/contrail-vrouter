@@ -45,6 +45,10 @@ extern void vr_ip_update_csum(struct vr_packet *, unsigned int,
 
 static void vr_flush_entry(struct vrouter *, struct vr_flow_entry *,
         struct vr_flow_md *, struct vr_forwarding_md *);
+struct vr_flow_entry *vr_find_flow(struct vrouter *, struct vr_flow_key *,
+        unsigned int *);
+unsigned int vr_trap_flow(struct vrouter *, struct vr_flow_entry *,
+        struct vr_packet *, unsigned int);
 
 static void
 vr_flow_reset_mirror(struct vrouter *router, struct vr_flow_entry *fe, 

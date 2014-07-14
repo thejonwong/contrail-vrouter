@@ -60,6 +60,8 @@ extern uma_zone_t zone_vr_packet;
 
 extern int vr_flow_entries;
 extern int vr_oflow_entries;
+/* Prototypes */
+struct host_os *vrouter_get_host(void);
 
 /*
  * Overlay length used for TCP MSS adjust. For UDP outer header, overlay
@@ -601,7 +603,7 @@ fh_reset_mbuf_fields(struct vr_packet *pkt)
 	KASSERT(m, ("NULL mbuf"));
 
 	pkt->vp_head =
-	    (unsigned char *)(m->m_flags & M_EXT ? m->m_ext.ext_buf :
+        (unsigned char *)(m->m_flags & M_EXT ? m->m_ext.ext_buf :
 	    m->m_flags & M_PKTHDR ? m->m_pktdat : m->m_dat);
 	pkt->vp_data = M_LEADINGSPACE(m);
 
@@ -612,7 +614,7 @@ fh_reset_mbuf_fields(struct vr_packet *pkt)
 }
 
 static int
-fh_pkt_from_vm_tcp_mss_adj(struct vr_packet *pkt)
+fh_pkt_from_vm_tcp_mss_adj(struct vr_packet *pkt, unsigned short unu)
 {
 	struct tcphdr *tcph;
 	struct vr_ip *iph;
