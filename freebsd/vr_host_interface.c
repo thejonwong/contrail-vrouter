@@ -40,10 +40,17 @@
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/if_media.h>
+#include <netinet/in.h>
+#include <netinet/ip.h>
+#include <netinet/ip_var.h>
+#include <net/ethernet.h>
+#include <machine/in_cksum.h>
 
 #include "vr_freebsd.h"
 #include "vr_packet.h"
 #include "vr_interface.h"
+
+#define OUTER_HEADER (VR_MPLS_HDR_LEN + sizeof(struct vr_ip) + sizeof(struct vr_gre))
 
 /* UMA zone for vr_packet */
 uma_zone_t zone_vr_packet;
@@ -59,7 +66,7 @@ freebsd_get_packet(struct mbuf *m, struct vr_interface *vif)
 	struct vr_packet *pkt;
 	uint32_t bufsize;
 
-	wrapper = uma_zalloc(zone_vr_packet, M_NOWAIT);
+	wrapper = uma_zalloc(zone_vr_packet, M_NOWAIT | M_ZERO);
 	if (!wrapper) {
 		vr_log(VR_ERR, "cannot alloc wrapper");
 		return (NULL);
@@ -225,8 +232,14 @@ static int
 freebsd_if_tx(struct vr_interface *vif, struct vr_packet *pkt)
 {
 	struct ifnet *ifp;
-	struct mbuf *m;
+	struct mbuf *m, *m0;
+	struct ether_header *eh;
+	struct ip *ip;
+	char *hdr;
+	int ip_off;
 	int ret = 0;
+	char header[OUTER_HEADER + sizeof(struct vr_eth)];
+	unsigned short len, type;
 
 	KASSERT((vif && pkt), ("Null argument: vif:%p pkt:%p\n", vif, pkt));
 
@@ -236,10 +249,61 @@ freebsd_if_tx(struct vr_interface *vif, struct vr_packet *pkt)
 	/* Fetch original mbuf from packet structure */
 	m = vp_os_packet(pkt);
 
+	/* Trim mbuf if vp_data is not at the beginning */
+	if (pkt->vp_data != M_LEADINGSPACE(m))
+		m_adj(m, pkt->vp_data - M_LEADINGSPACE(m));
+
+	eh = mtod(m, struct ether_header *);
+	type = ntohs(eh->ether_type);
+	ip_off = sizeof (struct ether_header);
+	if (m->m_len < ip_off + sizeof(struct ip))
+		m = m_pullup(m, ip_off + sizeof(struct ip));
+	ip = (struct ip *) (mtod(m, char *) + ip_off);
+	if (ip->ip_p == VR_IP_PROTO_GRE) {
+		ip->ip_sum = 0;
+		ip->ip_sum = in_cksum_hdr(ip);
+	}
+
+	if ((type == ETHERTYPE_IP) && ntohs(ip->ip_len) > ifp->if_mtu) {
+		/* First save outer header: eth + ip + gre/mpls XXX save as mbuf?*/
+		hdr = mtod(m, char *);
+		m_copydata(m, 0, OUTER_HEADER + sizeof(struct vr_eth), (caddr_t) header);
+		/* Get rid of outer header */
+		m_adj(m, OUTER_HEADER + sizeof(struct vr_eth));
+
+		/* Go into inner ip header */
+		ip = (struct ip *) (mtod(m, char *));
+		/* Clear DONT FRAGMENT */
+		ip->ip_off = 0;
+
+		ret = ip_fragment(ip, &m, ifp->if_mtu - OUTER_HEADER, ifp->if_hwassist);
+		for (; m; m = m0) {
+			m0 = m->m_nextpkt;
+			m_clrprotoflags(m);
+
+			/* Modify innef header checksum */
+			ip = (struct ip *) (mtod(m, char *));
+			ip->ip_sum = 0;
+			ip->ip_sum = in_cksum_hdr(ip);
+
+			/* Add outer header */
+			len = ntohs(ip->ip_len);
+			M_PREPEND(m, OUTER_HEADER + sizeof(struct vr_eth), M_NOWAIT);
+			bcopy(header, mtod(m, caddr_t), OUTER_HEADER + sizeof(struct vr_eth));
+
+			/* Update outer header checksum */
+			ip = (struct ip *) (mtod(m, char *) + sizeof(struct vr_eth));
+			ip->ip_len = htons(len + OUTER_HEADER);
+			ip->ip_sum = 0;
+			ip->ip_sum = in_cksum_hdr(ip);
+		}
+	}
+
 	/* Pass mbuf to driver for sending */
 	ret = ifp->if_transmit(ifp, m);
 	if (ret)
 		vr_log(VR_ERR, "if_transmit failed, ret:%d\n", ret);
+
 
 	/* Free packet */
 	uma_zfree(zone_vr_packet, pkt);

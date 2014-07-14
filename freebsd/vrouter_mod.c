@@ -58,6 +58,8 @@
 /* UMA zone for vr_packet */
 extern uma_zone_t zone_vr_packet;
 
+extern int vr_flow_entries;
+extern int vr_oflow_entries;
 /* Prototypes */
 struct host_os *vrouter_get_host(void);
 
@@ -151,9 +153,11 @@ fh_palloc(unsigned int size)
 {
 	struct mbuf *m;
 
-	m = m_get2(size, M_NOWAIT, MT_DATA, 0);
+	m = m_get2(size, M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (!m)
-	       return (NULL);
+		return (NULL);
+
+	m->m_len = m->m_pkthdr.len = size;
 
 	return (freebsd_get_packet(m, NULL));
 }
@@ -169,9 +173,37 @@ fh_palloc_head(struct vr_packet *pkt, unsigned int size)
 static struct vr_packet *
 fh_pexpand_head(struct vr_packet *pkt, unsigned int hspace)
 {
+	struct mbuf *m;
+	struct vr_packet_wrapper *wrapper = (struct vr_packet_wrapper *) pkt;
+	int offset;
 
-	vr_log(VR_ERR, "%s: not implemented\n", __func__);
-	return (NULL);
+	m = vp_os_packet(pkt);
+	if (!m)
+		return NULL;
+
+	offset = M_LEADINGSPACE(m);
+	M_PREPEND(m, hspace, M_NOWAIT);
+	if (m == NULL)
+		return NULL;
+
+	/* Data must be continuous, so mbuf must be defragged */
+	m = m_defrag(m, M_NOWAIT);
+	hspace -= offset;
+
+	pkt->vp_head =
+	    (unsigned char *)(m->m_flags & M_EXT ? m->m_ext.ext_buf :
+	    m->m_flags & M_PKTHDR ? m->m_pktdat : m->m_dat);
+	pkt->vp_data += hspace;
+	pkt->vp_tail += hspace;
+	pkt->vp_end = m->m_flags & M_EXT ? m->m_ext.ext_size :
+		((m->m_flags & M_PKTHDR) ? MHLEN : MLEN);
+
+	pkt->vp_network_h += hspace;
+	pkt->vp_inner_network_h += hspace;
+
+	wrapper->vrw_m = m;
+
+	return (pkt);
 }
 
 static void
@@ -246,6 +278,7 @@ fh_pcopy(unsigned char *dst, struct vr_packet *p_src,
 
 	m = vp_os_packet(p_src);
 	m_copydata(m, offset, len, (caddr_t)dst);
+	m->m_len = m->m_pkthdr.len = len;
 	return (len);
 }
 
@@ -278,8 +311,11 @@ fh_phead_len(struct vr_packet *pkt)
 static void
 fh_pset_data(struct vr_packet *pkt, unsigned short offset)
 {
+	struct mbuf *m;
 
-	vr_log(VR_ERR, "%s: not implemented\n", __func__);
+	m = vp_os_packet(pkt);
+	m->m_data = (caddr_t)(pkt->vp_head + offset);
+
 	return;
 }
 
@@ -428,34 +464,22 @@ fh_data_at_offset(struct vr_packet *pkt, unsigned short off)
 static void *
 fh_pheader_pointer(struct vr_packet *pkt, unsigned short hdr_len, void *buf)
 {
+	int offset;
+	struct mbuf *m = vp_os_packet(pkt);
+	int hlen = m->m_len;
 
-	vr_log(VR_ERR, "%s: not implemented\n", __func__);
-	return (NULL);
-}
+	offset = pkt->vp_data - M_LEADINGSPACE(m);
 
-static int
-fh_pull_inner_headers(struct vr_ip *outer_iph, struct vr_packet *pkt,
-    unsigned short ip_proto, unsigned short *reason,
-    int (*tunnel_type_cb)(unsigned int, unsigned int, unsigned short *))
-{
+	if (hlen - hdr_len >= offset)
+		return (mtodo(m, offset));
 
-	vr_log(VR_ERR, "%s: not implemented\n", __func__);
-	return (0);
+	m_copydata(m, offset, hdr_len, buf);
+
+	return (buf);
 }
 
 static int
 fh_pcow(struct vr_packet *pkt, unsigned short head_room)
-{
-
-	vr_log(VR_ERR, "%s: not implemented\n", __func__);
-	return (0);
-}
-
-static int
-fh_pull_inner_headers_fast(struct vr_ip *iph, struct vr_packet *pkt,
-    unsigned char proto,
-    int (*tunnel_type_cb)(unsigned int, unsigned int, unsigned short *),
-    int *ret, int *encap_type)
 {
 
 	vr_log(VR_ERR, "%s: not implemented\n", __func__);
@@ -519,7 +543,7 @@ fh_adjust_tcp_mss(struct tcphdr *tcph, struct mbuf *m)
 				return;
 			max_mss = ifp->if_mtu -
 			    (VROUTER_OVERLAY_LEN + sizeof(struct vr_ip) +
-			     sizeof(struct tcphdr));
+			    sizeof(struct tcphdr));
 
 			if (pkt_mss > max_mss) {
 				if ((m->m_pkthdr.csum_flags & CSUM_TCP) == 0) {
@@ -654,9 +678,9 @@ struct host_os freebsd_host = {
 	.hos_inner_network_header	= fh_inner_network_header,
 	.hos_data_at_offset		= fh_data_at_offset,
 	.hos_pheader_pointer		= fh_pheader_pointer,
-	.hos_pull_inner_headers		= fh_pull_inner_headers,
+	.hos_pull_inner_headers		= NULL, /* TODO(md): to implement */
 	.hos_pcow			= fh_pcow,
-	.hos_pull_inner_headers_fast	= fh_pull_inner_headers_fast,
+	.hos_pull_inner_headers_fast	= NULL, /* TODO(md): to implement */
 	.hos_get_udp_src_port		= fh_get_udp_src_port,
 	.hos_pkt_from_vm_tcp_mss_adj	= fh_pkt_from_vm_tcp_mss_adj,
 };
@@ -776,6 +800,10 @@ vrouter_event_handler(struct module *module, int event, void *arg)
 	switch (event)
 	{
 	case MOD_LOAD:
+		/* Make size of flow tables the same as linux defaults */
+		vr_flow_entries = 4096;
+		vr_oflow_entries = 512;
+
 		ret = vrouter_freebsd_init();
 		if (ret) {
 			vr_log(VR_ERR, "vrouter load failed: %d\n", ret);
