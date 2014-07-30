@@ -176,6 +176,10 @@ exit_rx:
     return RX_HANDLER_CONSUMED;
 }
 
+struct vrouter_gso_cb {
+    void (*destructor)(struct sk_buff *skb);
+};
+
 static long
 linux_inet_fragment(struct vr_interface *vif, struct sk_buff *skb,
         unsigned short type)
@@ -233,6 +237,20 @@ linux_inet_fragment(struct vr_interface *vif, struct sk_buff *skb,
 
     /* pull till transport header */
     skb_pull(skb, skb->mac_len + ip_hlen);
+    /*
+     * in 2.6.32-358.123.2.openstack.el6 kernel (and I guess all openstack
+     * kernels), the first field in the skb->cb is an offset field that is
+     * used to calculate header length. In those kernels, skb->cb is a
+     * structure of type skb_gso_cb with one field. Need to set that field
+     * to zero.
+     *
+     * This is equivalent to doing
+     *
+     * pkt->vp_head = NULL
+     *
+     * and hence access to packet structure beyond this point is suicidal
+     */
+    memset(skb->cb, 0, sizeof(struct vrouter_gso_cb));
     segs = skb_segment(skb, features);
     if (IS_ERR(segs))
         return PTR_ERR(segs);
@@ -264,6 +282,9 @@ linux_xmit(struct vr_interface *vif, struct sk_buff *skb,
     if (vif->vif_type == VIF_TYPE_VIRTUAL &&
             skb->ip_summed == CHECKSUM_NONE)
         skb->ip_summed = CHECKSUM_UNNECESSARY;
+
+    if (vif->vif_type == VIF_TYPE_AGENT)
+        skb_shinfo(skb)->gso_size = 0;
 
     if (vif->vif_type != VIF_TYPE_PHYSICAL ||
             skb->len <= skb->dev->mtu + skb->dev->hard_header_len) {
@@ -791,8 +812,7 @@ linux_if_tx(struct vr_interface *vif, struct vr_packet *pkt)
      * agent, which get sent to the NIC driver (to handle cases where the
      * NIC has hw vlan acceleration enabled).
      */
-    if ((pkt->vp_type == VP_TYPE_AGENT) &&
-            (vif->vif_type == VIF_TYPE_PHYSICAL)) {
+    if (pkt->vp_type == VP_TYPE_AGENT) {
         network_off = pkt_get_inner_network_header_off(pkt);
         if (network_off) {
             skb_set_network_header(skb, (network_off - skb_headroom(skb)));
@@ -917,33 +937,85 @@ linux_to_vr(struct vr_interface *vif, struct sk_buff *skb)
     return 0;
 }
 
+bool
+linux_ip_proto_pull(struct iphdr *iph)
+{
+    __u8 proto = iph->protocol;
+
+    if ((proto == VR_IP_PROTO_TCP) ||
+            (proto == VR_IP_PROTO_UDP) ||
+            (proto == VR_IP_PROTO_ICMP)) {
+        return true;
+    }
+
+    return false;
+}
+
 static int
 linux_pull_outer_headers(struct sk_buff *skb)
 {
     struct vlan_hdr *vhdr;
     uint16_t proto, offset;
-    struct iphdr *iph;
+    struct iphdr *iph = NULL;
 
     offset = 0;
     proto = skb->protocol;
     while (proto == htons(ETH_P_8021Q)) {
-        if (!pskb_may_pull(skb, offset + VLAN_HLEN))
+        offset += sizeof(struct vlan_hdr);
+        if (!pskb_may_pull(skb, offset))
             goto pull_fail;
         vhdr = (struct vlan_hdr *)(skb->data + offset);
         proto = vhdr->h_vlan_encapsulated_proto;
-        offset += sizeof(struct vlan_hdr);
     }
 
     if (likely(proto == htons(ETH_P_IP))) {
         skb_set_network_header(skb, offset);
-        if (!pskb_may_pull(skb, offset + sizeof(struct iphdr)))
+
+        offset += sizeof(struct iphdr);
+        if (!pskb_may_pull(skb, offset))
+            goto pull_fail;
+
+        iph = ip_hdr(skb);
+        offset += (iph->ihl * 4) - sizeof(struct iphdr);
+        if (!pskb_may_pull(skb, offset))
             goto pull_fail;
         iph = ip_hdr(skb);
-        if (!pskb_may_pull(skb, offset + iph->ihl * 4))
-            goto pull_fail;
     } else if (proto == htons(ETH_P_ARP)) {
-        if (!pskb_may_pull(skb, offset + sizeof(struct arphdr)))
+        offset += sizeof(struct vr_arp);
+        if (!pskb_may_pull(skb, offset))
             goto pull_fail;
+    }
+
+    if (iph && linux_ip_proto_pull(iph) &&
+            vr_ip_transport_header_valid((struct vr_ip *)iph)) {
+        /*
+         * this covers both regular port number offsets that come in
+         * the first 4 bytes and the icmp header
+         */
+        offset += sizeof(struct vr_icmp);
+        if (!pskb_may_pull(skb, offset))
+            goto pull_fail;
+
+
+        iph = ip_hdr(skb);
+        if (iph->protocol == VR_IP_PROTO_ICMP) {
+            if (vr_icmp_error((struct vr_icmp *)((unsigned char *)iph +
+                            (iph->ihl * 4)))) {
+                iph = (struct iphdr *)(skb->data + offset);
+                offset += sizeof(struct iphdr);
+                if (!pskb_may_pull(skb, offset))
+                    goto pull_fail;
+
+                iph = (struct iphdr *)(skb->data + offset - sizeof(struct iphdr));
+                if (linux_ip_proto_pull(iph)) {
+                    offset += (iph->ihl * 4) - sizeof(struct iphdr) +
+                        sizeof(struct vr_icmp);
+
+                    if (!pskb_may_pull(skb, offset))
+                        goto pull_fail;
+                }
+            }
+        }
     }
 
 
@@ -1029,11 +1101,9 @@ linux_rx_handler(struct sk_buff **pskb)
     }
 #endif
 
-    if (vif->vif_type == VIF_TYPE_PHYSICAL) {
-        ret = linux_pull_outer_headers(skb);
-        if (ret < 0)
-            goto error;
-    }
+    ret = linux_pull_outer_headers(skb);
+    if (ret < 0)
+        goto error;
 
     skb_push(skb, ETH_HLEN);
 
@@ -1260,11 +1330,9 @@ vr_interface_common_hook(struct sk_buff *skb)
     }
 #endif
 
-    if (vif->vif_type == VIF_TYPE_PHYSICAL) {
-        ret = linux_pull_outer_headers(skb);
-        if (ret < 0)
-            goto error;
-    }
+    ret = linux_pull_outer_headers(skb);
+    if (ret < 0)
+        goto error;
 
     if (skb->protocol == htons(ETH_P_8021Q)) {
         vhdr = (struct vlan_hdr *)skb->data;
@@ -1328,54 +1396,32 @@ vr_interface_ovs_hook(struct sk_buff *skb)
 static int
 linux_if_del_tap(struct vr_interface *vif)
 {
-    int ret = 0;
     struct net_device *dev;
-    bool i_locked = false;
 
     if (vif->vif_type == VIF_TYPE_STATS)
         return 0;
 
-    if (!rtnl_is_locked()) {
-        i_locked = true;
-        rtnl_lock();
-    }
-
     dev = (struct net_device *)vif->vif_os;
-    if (!dev) {
-        ret = -EINVAL;
-        goto exit_del_tap;
-    }
+    if (!dev)
+        return -EINVAL;
 
     if (rcu_dereference(dev->rx_handler) == linux_rx_handler)
         netdev_rx_handler_unregister(dev);
 
-exit_del_tap:
-    if (i_locked)
-        rtnl_unlock();
-
-    return ret;
+    return 0;
 }
 #else
 static int
 linux_if_del_tap(struct vr_interface *vif)
 {
-    int ret = 0;
     struct net_device *dev;
-    bool i_locked = false;
 
     if (vif->vif_type == VIF_TYPE_STATS)
         return 0;
 
-    if (!rtnl_is_locked()) {
-        i_locked = true;
-        rtnl_lock();
-    }
-
     dev = (struct net_device *)vif->vif_os;
-    if (!dev) {
-        ret = -EINVAL;
-        goto exit_del_tap;
-    }
+    if (!dev)
+        return -EINVAL;
 
     if (vr_get_vif_ptr(dev) == (void *)vif) {
         if ((vif->vif_type == VIF_TYPE_PHYSICAL) &&
@@ -1386,11 +1432,7 @@ linux_if_del_tap(struct vr_interface *vif)
         }
     }
 
-exit_del_tap:
-    if (i_locked)
-        rtnl_unlock();
-
-    return ret;
+    return 0;
 }
 #endif
 
@@ -1398,28 +1440,17 @@ exit_del_tap:
 static int
 linux_if_add_tap(struct vr_interface *vif)
 {
-    int ret;
-    bool i_locked = false;
     struct net_device *dev;
 
     if (vif->vif_type == VIF_TYPE_STATS)
         return 0;
 
-    if (!rtnl_is_locked()) {
-        i_locked = true;
-        rtnl_lock();
-    }
-
-    if (vif->vif_name[0] == '\0') {
-        ret = -ENODEV;
-        goto exit_add_tap;
-    }
+    if (vif->vif_name[0] == '\0')
+        return -ENODEV;
 
     dev = (struct net_device *)vif->vif_os;
-    if (!dev) {
-        ret = -EINVAL;
-        goto exit_add_tap;
-    }
+    if (!dev)
+        return -EINVAL;
 
     if ((vif->vif_type == VIF_TYPE_PHYSICAL) &&
             (vif->vif_flags & VIF_FLAG_VHOST_PHYS)) {
@@ -1428,47 +1459,27 @@ linux_if_add_tap(struct vr_interface *vif)
         }
     }
 
-    ret = netdev_rx_handler_register(dev, linux_rx_handler, (void *)vif);
-
-exit_add_tap:
-    if (i_locked)
-        rtnl_unlock();
-
-    return ret;
+    return netdev_rx_handler_register(dev, linux_rx_handler, (void *)vif);
 }
 #else
 static int
 linux_if_add_tap(struct vr_interface *vif)
 {
-    int ret = 0;
     struct net_device *dev;
-    bool i_locked = false;
 
     if (vif->vif_type == VIF_TYPE_STATS)
         return 0;
 
-    if (!rtnl_is_locked()) {
-        i_locked = true;
-        rtnl_lock();
-    }
-
-    if (vif->vif_name[0] == '\0') {
-        ret = -ENODEV;
-        goto exit_add_tap;
-    }
+    if (vif->vif_name[0] == '\0')
+        return -ENODEV;
 
     dev = (struct net_device *)vif->vif_os;
-    if (!dev) {
-        ret = -EINVAL;
-        goto exit_add_tap;
-    }
+    if (!dev)
+        return -EINVAL;
 
     vr_set_vif_ptr(dev, (void *)vif);
 
-exit_add_tap:
-    if (i_locked)
-        rtnl_unlock();
-    return ret;
+    return 0;
 }
 #endif
 
@@ -1504,6 +1515,17 @@ linux_if_get_settings(struct vr_interface *vif,
     return ret;
 }
 
+static unsigned int
+linux_if_get_mtu(struct vr_interface *vif)
+{
+    struct net_device *dev = (struct net_device *)vif->vif_os;
+
+    if (dev)
+        return dev->mtu;
+    else
+        return vif->vif_mtu;
+}
+
 /*
  * linux_if_tx_csum_offload - returns 1 if the device supports checksum offload
  * on transmit for tunneled packets. Devices which have NETIF_F_HW_CSUM set
@@ -1532,15 +1554,8 @@ linux_if_tx_csum_offload(struct net_device *dev)
 static int
 linux_if_del(struct vr_interface *vif)
 {
-    int rtnl_was_locked;
-
-    rtnl_was_locked = rtnl_is_locked();
-    if (!rtnl_was_locked) {
-        rtnl_lock();
-    }
-
     if (vif_needs_dev(vif) && !vif->vif_os_idx)
-        goto exit_del;
+        return 0;
 
     if (vif_is_vhost(vif))
         vhost_if_del((struct net_device *)vif->vif_os);
@@ -1561,37 +1576,24 @@ linux_if_del(struct vr_interface *vif)
     vif->vif_os = NULL;
     vif->vif_os_idx = 0;
 
-exit_del:
-    if (!rtnl_was_locked) {
-        rtnl_unlock();
-    }
-
     return 0;
 }
 
 static int
 linux_if_add(struct vr_interface *vif)
 {
-    int rtnl_was_locked, ret = 0;
     struct net_device *dev;
-
-    rtnl_was_locked = rtnl_is_locked();
-    if (!rtnl_was_locked) {
-        rtnl_lock();
-    }
 
     if (vif_needs_dev(vif)) {
         if (!vif->vif_os_idx || vif->vif_name[0] == '\0') {
-            ret = -ENODEV;
-            goto exit_add;
+            return -ENODEV;
         }
     }
 
     if (vif->vif_os_idx) {
         dev = dev_get_by_index(&init_net, vif->vif_os_idx);
         if (!dev) {
-            ret = -ENODEV;
-            goto exit_add;
+            return -ENODEV;
         }
 
         vif->vif_os = (void *)dev;
@@ -1614,12 +1616,21 @@ linux_if_add(struct vr_interface *vif)
         napi_enable(&vif->vr_napi);
     }
 
-exit_add:
-    if (!rtnl_was_locked) {
-        rtnl_unlock();
-    }
+    return 0;
+}
 
-    return ret;
+static void
+linux_if_unlock(void)
+{
+    rtnl_unlock();
+    return;
+}
+
+static void
+linux_if_lock(void)
+{
+    rtnl_lock();
+    return;
 }
 
 /*
@@ -1717,7 +1728,7 @@ static struct net_device *
 linux_pkt_dev_init(char *name, void (*setup)(struct net_device *),
                    rx_handler_result_t (*handler)(struct sk_buff **))
 {
-    int err = 0, rtnl_was_locked;
+    int err = 0;
     struct net_device *pdev = NULL;
 
     if (!(pdev = alloc_netdev_mqs(0, name, setup,
@@ -1726,10 +1737,7 @@ linux_pkt_dev_init(char *name, void (*setup)(struct net_device *),
         return NULL;
     }
 
-    rtnl_was_locked = rtnl_is_locked();
-    if (!rtnl_was_locked) {
-        rtnl_lock();
-    }
+    rtnl_lock();
 
     if ((err = register_netdevice(pdev))) {
         vr_module_error(err, __FUNCTION__, __LINE__, 0);
@@ -1745,9 +1753,7 @@ linux_pkt_dev_init(char *name, void (*setup)(struct net_device *),
 #endif
     }
 
-    if (!rtnl_was_locked) {
-        rtnl_unlock();
-    }
+    rtnl_unlock();
 
     if (err) {
         free_netdev(pdev);
@@ -1949,6 +1955,8 @@ vr_napi_poll(struct napi_struct *napi, int budget)
 }
 
 struct vr_host_interface_ops vr_linux_interface_ops = {
+    .hif_lock           =       linux_if_lock,
+    .hif_unlock         =       linux_if_unlock,
     .hif_add            =       linux_if_add,
     .hif_del            =       linux_if_del,
     .hif_add_tap        =       linux_if_add_tap,
@@ -1956,6 +1964,7 @@ struct vr_host_interface_ops vr_linux_interface_ops = {
     .hif_tx             =       linux_if_tx,
     .hif_rx             =       linux_if_rx,
     .hif_get_settings   =       linux_if_get_settings,
+    .hif_get_mtu        =       linux_if_get_mtu,
 };
 
 static int
