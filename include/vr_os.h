@@ -47,7 +47,10 @@
 #include <unistd.h>
 #include <errno.h>
 #include <assert.h>
-#include <sys/types.h>
+#include <linux/netlink.h>
+#include <linux/rtnelink.h>
+#include <linux/genetlink.h>
+#include <linux/socket.h>
 
 #define vr_printf(format, arg...)   printf(format, ##arg)
 #define ASSERT(x) assert((x));
@@ -70,10 +73,24 @@ typedef unsigned int __u32;
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/socket.h>
-#include <net/if.h>
-#include <net/if_types.h>
 #include <net/ethernet.h>
 #include <netinet/in.h>
+#include <sys/types.h>
+#include <sys/sysctl.h>
+#include <sys/time.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
+#include <net/if.h>
+#include <net/if_types.h>
+#include <net/if_dl.h>
+#include <net/route.h>
+#if defined(__FreeBSD__)
+/* net/route.h includes net/radix.h that defines Free macro.
+   Definition collides with ksync includes */
+#if defined(Free)
+#undef Free
+#endif
+#endif
 #include "netlink.h"
 #include "genetlink.h"
 
