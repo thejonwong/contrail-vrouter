@@ -48,7 +48,7 @@
 #include <errno.h>
 #include <assert.h>
 #include <linux/netlink.h>
-#include <linux/rtnelink.h>
+#include <linux/rtnetlink.h>
 #include <linux/genetlink.h>
 #include <linux/socket.h>
 
@@ -64,11 +64,9 @@ typedef unsigned short __u16;
 typedef __signed__ int __s32;
 typedef unsigned int __u32;
 
-#define true 1
-#define false 0
-
 #endif /* __KERNEL__ */
 #endif /* __linux__ */
+
 #if defined(__FreeBSD__)
 #include <sys/types.h>
 #include <sys/param.h>
@@ -84,12 +82,10 @@ typedef unsigned int __u32;
 #include <net/if_types.h>
 #include <net/if_dl.h>
 #include <net/route.h>
-#if defined(__FreeBSD__)
 /* net/route.h includes net/radix.h that defines Free macro.
    Definition collides with ksync includes */
 #if defined(Free)
 #undef Free
-#endif
 #endif
 #include "netlink.h"
 #include "genetlink.h"
