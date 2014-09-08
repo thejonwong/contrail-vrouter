@@ -74,6 +74,7 @@ struct host_os {
     unsigned short (*hos_pfrag_len)(struct vr_packet *);
     unsigned short (*hos_phead_len)(struct vr_packet *);
     void (*hos_pset_data)(struct vr_packet *, unsigned short);
+    unsigned int (*hos_pgso_size)(struct vr_packet *);
 
     unsigned int (*hos_get_cpu)(void);
     void (*hos_schedule_work)(unsigned int, void (*)(void *), void *);
@@ -91,7 +92,7 @@ struct host_os {
     void *(*hos_data_at_offset)(struct vr_packet *, unsigned short);
     void *(*hos_pheader_pointer)(struct vr_packet *, unsigned short,
                                  void *);
-    int  (*hos_pull_inner_headers)(struct vr_ip *, struct vr_packet *,
+    int  (*hos_pull_inner_headers)(struct vr_packet *,
                                    unsigned short, unsigned short *,
                                    int (*is_label_l2)(unsigned int,
                                        unsigned int, unsigned short *));
@@ -99,7 +100,7 @@ struct host_os {
     uint16_t (*hos_get_udp_src_port)(struct vr_packet *,
                                   struct vr_forwarding_md *, unsigned short);
     int (*hos_pkt_from_vm_tcp_mss_adj)(struct vr_packet *, unsigned short);
-    int  (*hos_pull_inner_headers_fast)(struct vr_ip *, struct vr_packet *,
+    int  (*hos_pull_inner_headers_fast)(struct vr_packet *,
                                         unsigned char, int
                                         (*is_label_l2)(unsigned int,
                                             unsigned int, unsigned short *), 
@@ -121,6 +122,7 @@ struct host_os {
 #define vr_pcopy                        vrouter_host->hos_pcopy
 #define vr_pfrag_len                    vrouter_host->hos_pfrag_len
 #define vr_phead_len                    vrouter_host->hos_phead_len
+#define vr_pgso_size                    vrouter_host->hos_pgso_size
 #define vr_pset_data                    vrouter_host->hos_pset_data
 #define vr_get_cpu                      vrouter_host->hos_get_cpu
 #define vr_schedule_work                vrouter_host->hos_schedule_work
