@@ -172,14 +172,15 @@ vr_get_flow_entry(struct vrouter *router, int index)
 
 static inline void
 vr_get_flow_key(struct vr_flow_key *key, uint16_t vlan, struct vr_packet *pkt,
-        struct vr_ip *ip, unsigned short sport, unsigned short dport)
+        unsigned int sip, unsigned int dip, unsigned char proto,
+        unsigned short sport, unsigned short dport)
 {
-    unsigned short *t_hdr;
     unsigned short nh_id;
 
     /* copy both source and destinations */
-    memcpy(&key->key_src_ip, &ip->ip_saddr, 2 * sizeof(ip->ip_saddr));
-    key->key_proto = ip->ip_proto;
+    key->key_src_ip = sip;
+    key->key_dest_ip = dip;
+    key->key_proto = proto;
     key->key_zero = 0;
 
     if (vif_is_fabric(pkt->vp_if) && pkt->vp_nh) {
@@ -192,10 +193,7 @@ vr_get_flow_key(struct vr_flow_key *key, uint16_t vlan, struct vr_packet *pkt,
 
     key->key_nh_id = nh_id;
 
-    /* extract port information */
-    t_hdr = (unsigned short *)((char *)ip + (ip->ip_hl * 4));
-
-    switch (ip->ip_proto) {
+    switch (proto) {
     case VR_IP_PROTO_TCP:
     case VR_IP_PROTO_UDP:
     case VR_IP_PROTO_ICMP:
@@ -402,7 +400,9 @@ vr_flow_nat(unsigned short vrf, struct vr_flow_entry *fe, struct vr_packet *pkt,
     unsigned short *t_sport, *t_dport;
     struct vrouter *router = pkt->vp_if->vif_router;
     struct vr_flow_entry *rfe;
-    struct vr_ip *ip;
+    struct vr_ip *ip, *icmp_pl_ip;
+    struct vr_icmp *icmph;
+    bool hdr_update = false;
 
     if (fe->fe_rflow < 0)
         goto drop;
@@ -413,7 +413,38 @@ vr_flow_nat(unsigned short vrf, struct vr_flow_entry *fe, struct vr_packet *pkt,
 
     ip = (struct vr_ip *)pkt_data(pkt);
 
-    if (fe->fe_flags & VR_FLOW_FLAG_SNAT) {
+    if (ip->ip_proto == VR_IP_PROTO_ICMP) {
+        icmph = (struct vr_icmp *)((unsigned char *)ip + (ip->ip_hl * 4));
+        if (vr_icmp_error(icmph)) {
+            icmp_pl_ip = (struct vr_ip *)(icmph + 1);
+            if (fe->fe_flags & VR_FLOW_FLAG_SNAT) {
+                icmp_pl_ip->ip_daddr = rfe->fe_key.key_dest_ip;
+                hdr_update = true;
+            }
+
+            if (fe->fe_flags & VR_FLOW_FLAG_DNAT) {
+                icmp_pl_ip->ip_saddr = rfe->fe_key.key_src_ip;
+                hdr_update = true;
+            }
+
+            if (hdr_update)
+                icmp_pl_ip->ip_csum = vr_ip_csum(icmp_pl_ip);
+
+            t_sport = (unsigned short *)((unsigned char *)icmp_pl_ip +
+                    (icmp_pl_ip->ip_hl * 4));
+            t_dport = t_sport + 1;
+
+            if (fe->fe_flags & VR_FLOW_FLAG_SPAT)
+                *t_dport = rfe->fe_key.key_dst_port;
+
+            if (fe->fe_flags & VR_FLOW_FLAG_DPAT)
+                *t_sport = rfe->fe_key.key_src_port;
+        }
+    }
+
+
+    if ((fe->fe_flags & VR_FLOW_FLAG_SNAT) &&
+            (ip->ip_saddr == fe->fe_key.key_src_ip)) {
         vr_incremental_diff(ip->ip_saddr, rfe->fe_key.key_dest_ip, &inc);
         ip->ip_saddr = rfe->fe_key.key_dest_ip;
     }
@@ -514,6 +545,7 @@ vr_flow_action(struct vrouter *router, struct vr_flow_entry *fe,
         if (valid_src == NH_SOURCE_MISMATCH) {
             pkt_clone = vr_pclone(pkt);
             if (pkt_clone) {
+                vr_preset(pkt_clone);
                 if (vr_pcow(pkt_clone, sizeof(struct vr_eth) +
                             sizeof(struct agent_hdr))) {
                     vr_pfree(pkt_clone, VP_DROP_PCOW_FAIL);
@@ -764,17 +796,20 @@ vr_flow_parse(struct vrouter *router, struct vr_flow_key *key,
     return res;
 }
 
+
 unsigned int
 vr_flow_inet_input(struct vrouter *router, unsigned short vrf,
         struct vr_packet *pkt, unsigned short proto,
         struct vr_forwarding_md *fmd)
 {
     struct vr_flow_key key, *key_p = &key;
-    struct vr_ip *ip;
+    struct vr_ip *ip, *icmp_pl_ip = NULL;
     struct vr_fragment *frag;
     unsigned int flow_parse_res;
     unsigned int trap_res  = 0;
+    unsigned int sip, dip;
     unsigned short *t_hdr, sport, dport;
+    unsigned char ip_proto;
     struct vr_icmp *icmph;
 
     /*
@@ -786,11 +821,24 @@ vr_flow_inet_input(struct vrouter *router, unsigned short vrf,
         return vr_ip_rcv(router, pkt, fmd);
 
     ip = (struct vr_ip *)pkt_network_header(pkt);
+    ip_proto = ip->ip_proto;
+
     /* if the packet is not a fragment, we easily know the sport, and dport */
     if (vr_ip_transport_header_valid(ip)) {
         t_hdr = (unsigned short *)((char *)ip + (ip->ip_hl * 4));
-        if (ip->ip_proto == VR_IP_PROTO_ICMP) {
+        if (ip_proto == VR_IP_PROTO_ICMP) {
             icmph = (struct vr_icmp *)t_hdr;
+            if (vr_icmp_error(icmph)) {
+                icmp_pl_ip = (struct vr_ip *)(icmph + 1);
+                ip_proto = icmp_pl_ip->ip_proto;
+                t_hdr = (unsigned short *)((char *)icmp_pl_ip +
+                        (icmp_pl_ip->ip_hl * 4));
+                if (ip_proto == VR_IP_PROTO_ICMP)
+                    icmph = (struct vr_icmp *)t_hdr;
+            }
+        }
+
+        if (ip_proto == VR_IP_PROTO_ICMP) {
             if (icmph->icmp_type == VR_ICMP_TYPE_ECHO ||
                     icmph->icmp_type == VR_ICMP_TYPE_ECHO_REPLY) {
                 sport = icmph->icmp_eid;
@@ -800,8 +848,13 @@ vr_flow_inet_input(struct vrouter *router, unsigned short vrf,
                 dport = icmph->icmp_type;
             }
         } else {
-            sport = *t_hdr;
-            dport = *(t_hdr + 1);
+            if (icmp_pl_ip) {
+                sport = *(t_hdr + 1);
+                dport = *t_hdr;
+            } else {
+                sport = *t_hdr;
+                dport = *(t_hdr + 1);
+            }
         }
     } else {
         /* ...else, we need to get it from somewhere */
@@ -829,7 +882,18 @@ vr_flow_inet_input(struct vrouter *router, unsigned short vrf,
 
     if (key_p) {
         /* we have everything to make a key */
-        vr_get_flow_key(key_p, fmd->fmd_vlan, pkt, ip, sport, dport);
+
+        if (icmp_pl_ip) {
+            sip = icmp_pl_ip->ip_daddr;
+            dip = icmp_pl_ip->ip_saddr;
+        } else {
+            sip = ip->ip_saddr;
+            dip = ip->ip_daddr;
+        }
+
+        vr_get_flow_key(key_p, fmd->fmd_vlan, pkt,
+                sip, dip, ip_proto, sport, dport);
+
         flow_parse_res = vr_flow_parse(router, key_p, pkt, &trap_res);
         if (flow_parse_res == VR_FLOW_LOOKUP && vr_ip_fragment_head(ip))
             vr_fragment_add(router, vrf, ip, key_p->key_src_port,
@@ -1158,6 +1222,8 @@ vr_flow_set(struct vrouter *router, vr_flow_req *req)
     fe->fe_ecmp_nh_index = req->fr_ecmp_nh_index;
     fe->fe_src_nh_index = req->fr_src_nh_index;
     fe->fe_action = req->fr_action;
+    if (fe->fe_action == VR_FLOW_ACTION_DROP)
+        fe->fe_drop_reason = (uint8_t)req->fr_drop_reason;
     fe->fe_flags = req->fr_flags; 
 
 
