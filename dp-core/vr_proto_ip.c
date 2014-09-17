@@ -90,7 +90,7 @@ vr_forward(struct vrouter *router, unsigned short vrf,
  * packet. Returns 1 if the packet was not handled, 0 otherwise.
  */
 unsigned int
-vr_udp_input(struct vr_ip *iph, struct vrouter *router, struct vr_packet *pkt,
+vr_udp_input(struct vrouter *router, struct vr_packet *pkt,
              struct vr_forwarding_md *fmd)
 {
     struct vr_udp *udph, udp;
@@ -99,7 +99,7 @@ vr_udp_input(struct vr_ip *iph, struct vrouter *router, struct vr_packet *pkt,
     int encap_type = PKT_ENCAP_MPLS;
 
     if (vr_perfp && vr_pull_inner_headers_fast) {
-        handled = vr_pull_inner_headers_fast(iph, pkt, VR_IP_PROTO_UDP,
+        handled = vr_pull_inner_headers_fast(pkt, VR_IP_PROTO_UDP,
                 vr_mpls_tunnel_type, &ret, &encap_type);
         if (!handled) {
             return 1;
@@ -118,7 +118,7 @@ vr_udp_input(struct vr_ip *iph, struct vrouter *router, struct vr_packet *pkt,
         ASSERT(ret == PKT_RET_SLOW_PATH);
     }
    
-    udph = (struct vr_udp *) vr_pheader_pointer(pkt, sizeof(struct vr_udp), 
+    udph = (struct vr_udp *)vr_pheader_pointer(pkt, sizeof(struct vr_udp),
                                                 &udp);
     if (udph == NULL) {
         vr_pfree(pkt, VP_DROP_MISC);
@@ -138,7 +138,7 @@ vr_udp_input(struct vr_ip *iph, struct vrouter *router, struct vr_packet *pkt,
      * as required into the contiguous part of the pkt.
      */
     if (vr_pull_inner_headers) {
-        if (!vr_pull_inner_headers(iph, pkt, VR_IP_PROTO_UDP,
+        if (!vr_pull_inner_headers(pkt, VR_IP_PROTO_UDP,
                     &reason, vr_mpls_tunnel_type)) {
             vr_pfree(pkt, reason);
             return 0;
@@ -166,7 +166,7 @@ vr_gre_input(struct vrouter *router, struct vr_packet *pkt,
     int encap_type;
 
     if (vr_perfp && vr_pull_inner_headers_fast) {
-        handled = vr_pull_inner_headers_fast(NULL, pkt, VR_IP_PROTO_GRE,
+        handled = vr_pull_inner_headers_fast(pkt, VR_IP_PROTO_GRE,
                 vr_mpls_tunnel_type, &ret, &encap_type);
         if (!handled) {
             goto unhandled;
@@ -216,7 +216,7 @@ vr_gre_input(struct vrouter *router, struct vr_packet *pkt,
      * as required into the contiguous part of the pkt.
      */
     if (vr_pull_inner_headers) {
-        if (!vr_pull_inner_headers(NULL, pkt, VR_IP_PROTO_GRE, &reason,
+        if (!vr_pull_inner_headers(pkt, VR_IP_PROTO_GRE, &reason,
                     vr_mpls_tunnel_type)) {
             vr_pfree(pkt, reason);
             return 0;
@@ -262,7 +262,7 @@ vr_ip_rcv(struct vrouter *router, struct vr_packet *pkt,
         if (ip->ip_proto == VR_IP_PROTO_GRE) {
             unhandled = vr_gre_input(router, pkt, fmd);
         } else if (ip->ip_proto == VR_IP_PROTO_UDP) {
-            unhandled = vr_udp_input(ip, router, pkt, fmd);
+            unhandled = vr_udp_input(router, pkt, fmd);
         }
     }
 
@@ -448,71 +448,36 @@ vr_ip_partial_csum(struct vr_ip *ip)
     return csum;
 }
 
-unsigned int
-vr_route_flags(unsigned int vrf, unsigned int ip)
-{
-    struct vr_route_req rt;
-
-    rt.rtr_req.rtr_vrf_id = vrf;
-    rt.rtr_req.rtr_prefix = ntohl(ip);
-    rt.rtr_req.rtr_prefix_len = 32;
-    rt.rtr_req.rtr_nh_id = 0;
-    rt.rtr_req.rtr_label_flags = 0;
-
-    (void)vr_inet_route_lookup(vrf, &rt, NULL);
-
-    return rt.rtr_req.rtr_label_flags;
-}
 
 bool
-vr_should_proxy(struct vr_interface *vif, unsigned int dip,
-        unsigned int sip)
+vr_has_to_fragment(struct vr_interface *vif, struct vr_packet *pkt,
+        unsigned int tun_len)
 {
-    unsigned int rt_flags;
+    unsigned int len;
+    struct vr_ip *ip;
+    struct vr_tcp *tcp;
+    unsigned int mtu = vif_get_mtu(vif);
 
-    /*
-     * vr should proxy for all arp requests from VM and from
-     * the link local interface. requests from VM can include
-     * requests for IPs in the fabric (in the case of interface
-     * in the fabric vrf) or to other VMs in its vrf.
-     *
-     * packets from the link local interface are destined to VMs
-     * in the same system. so, VR should always proxy for those
-     * requests
-     */
-    if (vif_is_virtual(vif)) {
-        /* 
-         * some OSes send arp queries with zero SIP before taking ownership
-         * of the DIP
-         */
-        if (!sip)
+    if (pkt_is_gso(pkt)) {
+        len = vr_pgso_size(pkt);
+        if (len > mtu)
+            return true;
+
+        ip = (struct vr_ip *)pkt_network_header(pkt);
+        if (!ip)
             return false;
-        return true;
+
+        len += (ip->ip_hl * 4);
+
+        if (ip->ip_proto == VR_IP_PROTO_TCP) {
+            tcp = (struct vr_tcp *)((unsigned char *)ip + (ip->ip_hl * 4));
+            len += (tcp->tcp_offset * 4);
+        }
+    } else {
+        len = pkt_len(pkt);
     }
 
-    if (vif->vif_type == VIF_TYPE_XEN_LL_HOST ||
-            vif->vif_type == VIF_TYPE_GATEWAY)
-        return true;
-
-    /* rest of the cases are for type physical & vhost */
-
-    /*
-     * if the request is for link local ip and from vhost, vr should
-     * proxy for those requests too...
-     */
-    if (vif->vif_type == VIF_TYPE_HOST && IS_LINK_LOCAL_IP(dip))
-        return true;
-
-    /*
-     * following cases are handled below
-     * - requests from fabric to vhost IP
-     * - requests from fabric to a VM that has an IP in the fabric and
-     *   is hosted in this system
-     * - requests from vhost to a VM that has an IP in the fabric and
-     *   in the same system
-     */
-    rt_flags = vr_route_flags(vif->vif_vrf, dip);
-    if (rt_flags & VR_RT_HOSTED_FLAG)
+    if ((len + tun_len) > mtu)
         return true;
 
     return false;

@@ -80,7 +80,8 @@
 #define VP_TYPE_L2OIP           5
 #define VP_TYPE_VXLAN           6
 #define VP_TYPE_AGENT           7
-#define VP_TYPE_MAX             8 
+#define VP_TYPE_ARP             8
+#define VP_TYPE_MAX             9
 
 /*
  * Values to define how to proceed with handling a packet.
@@ -88,21 +89,32 @@
 #define PKT_RET_FAST_PATH 			1
 #define PKT_RET_SLOW_PATH 			2
 #define PKT_RET_ERROR     			3
-#define PKT_RET_FALLBACK_BRIDGING 		4
 
 /*
  * Values to define the MPLS tunnel type
  */
-#define PKT_MPLS_TUNNEL_INVALID     0x00
-#define PKT_MPLS_TUNNEL_L3          0x01
-#define PKT_MPLS_TUNNEL_L2_UCAST    0x02
-#define PKT_MPLS_TUNNEL_L2_MCAST    0x03
+#define PKT_MPLS_TUNNEL_INVALID         0x00
+#define PKT_MPLS_TUNNEL_L3              0x01
+#define PKT_MPLS_TUNNEL_L2_UCAST        0x02
+#define PKT_MPLS_TUNNEL_L2_MCAST        0x03
+#define PKT_MPLS_TUNNEL_L2_MCAST_EVPN   0x04
 
 /*
  * Values to define the encap type of outgoing packet
  */
 #define PKT_ENCAP_MPLS  0x01
 #define PKT_ENCAP_VXLAN 0x02
+
+
+/*
+ * Values to define handling of ARP packet
+ */
+#define PKT_ARP_DROP            0x00
+#define PKT_ARP_PROXY           0x01
+#define PKT_ARP_XCONNECT        0x02
+#define PKT_ARP_FLOOD           0x03
+#define PKT_ARP_TRAP_XCONNECT   0x04
+
 
 /* packet drop reasons */
 #define VP_DROP_DISCARD                     0
@@ -226,9 +238,7 @@ struct vr_packet_node {
 extern void pkt_reset(struct vr_packet *);
 extern struct vr_packet *pkt_copy(struct vr_packet *, unsigned short,
         unsigned short);
-extern int vr_trap(struct vr_packet *, unsigned short, unsigned short, void *);
 extern int vr_myip(struct vr_interface *, unsigned int);
-extern bool vr_should_proxy(struct vr_interface *, unsigned int, unsigned int);
 
 struct vr_eth {
     unsigned char eth_dmac[VR_ETHER_ALEN];
@@ -306,6 +316,19 @@ struct vr_ip {
     unsigned int ip_saddr;
     unsigned int ip_daddr;
 } __attribute__((packed));
+
+static inline unsigned char *pkt_network_header(struct vr_packet *);
+
+static inline bool
+vr_ip_dont_fragment_set(struct vr_packet *pkt)
+{
+    struct vr_ip *ip;
+
+    ip = (struct vr_ip *)pkt_network_header(pkt);
+    if (ntohs(ip->ip_frag_off) & VR_IP_DF)
+        return true;
+    return false;
+}
 
 static inline bool
 vr_ip_fragment_tail(struct vr_ip *iph)
@@ -407,7 +430,9 @@ struct vr_udp {
 } __attribute__((packed));
 
 #define VR_ICMP_TYPE_ECHO_REPLY     0
+#define VR_ICMP_TYPE_DEST_UNREACH   3
 #define VR_ICMP_TYPE_ECHO           8
+#define VR_ICMP_TYPE_TIME_EXCEEDED 11
 
 struct vr_icmp {
     uint8_t icmp_type;
@@ -417,6 +442,18 @@ struct vr_icmp {
     uint16_t icmp_eid;
     uint16_t icmp_eseq;
 } __attribute__((packed));
+
+static inline bool
+vr_icmp_error(struct vr_icmp *icmph)
+{
+    uint8_t type = icmph->icmp_type;
+
+    if ((type == VR_ICMP_TYPE_DEST_UNREACH) ||
+            (type == VR_ICMP_TYPE_TIME_EXCEEDED))
+        return true;
+
+    return false;
+}
 
 struct vr_gre {
     unsigned short gre_flags;
@@ -516,6 +553,14 @@ vr_init_forwarding_md(struct vr_forwarding_md *fmd)
 }
 
 #define VR_AGENT_MIN_PACKET_LEN     128
+
+static inline bool
+pkt_is_gso(struct vr_packet *pkt)
+{
+    if (vr_pgso_size(pkt))
+        return true;
+    return false;
+}
 
 static inline unsigned char *
 pkt_data_at_offset(struct vr_packet *pkt, unsigned short off)
