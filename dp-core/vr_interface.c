@@ -1379,26 +1379,40 @@ vif_find(struct vrouter *router, char *name)
 static int
 vif_drv_add(struct vr_interface *vif, vr_interface_req *req)
 {
+    printf("DEBUG: entering vif_drv_add();\n");
     int ret = 0;
 
+    printf("DEBUG: if (vif_drivers[vif->vif_type].drv_add) {;\n");
     if (vif_drivers[vif->vif_type].drv_add) {
-        if (hif_ops->hif_lock)
+        if (hif_ops->hif_lock) {
+            printf("DEBUG: hif_ops->hif_lock();\n");
             hif_ops->hif_lock();
+        }
 
+        printf("DEBUG: ret = vif_drivers[vif->vif_type].drv_add(vif, req);\n");
         ret = vif_drivers[vif->vif_type].drv_add(vif, req);
 
         /*
          * the check is right. If you haven't defined unlock, you deserve the
          * crash
          */
-        if (hif_ops->hif_lock)
+        printf("DEBUG: if (hif_ops->hif_lock) {\n");
+        if (hif_ops->hif_lock) {
+            printf("DEBUG: hif_ops->hif_unlock();\n");
             hif_ops->hif_unlock();
+        }
 
-        if (ret)
+        if (ret) {
+            printf("DEBUG: exiting vif_drv_add() with return=ret;\n");
             return ret;
+        }
     }
 
+    printf("DEBUG: vif->vif_driver = &vif_drivers[vif->vif_type];\n");
     vif->vif_driver = &vif_drivers[vif->vif_type];
+
+    printf("DEBUG: exiting vif_drv_add() with return=0;\n");
+
     return 0;
 
 }
