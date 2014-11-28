@@ -1560,19 +1560,27 @@ vr_interface_add(vr_interface_req *req, bool need_response)
     printf("DEBUG: vif_drv_add(vif, req);\n");
     ret = vif_drv_add(vif, req);
     if (ret) {
+        printf("DEBUG: vif_delete(vif);\n");
         vif_delete(vif);
+        printf("DEBUG: vif = NULL;\n");
         vif = NULL;
     }
 
-    if (!ret)
+    if (!ret) {
+        printf("DEBUG: vrouter_setup_vif(vif);\n");
         vrouter_setup_vif(vif);
+    }
 
 generate_resp:
-    if (need_response)
+    if (need_response) {
+        printf("DEBUG: vr_send_response(ret);\n");
         vr_send_response(ret);
+    }
 
-    if (ret && vif)
+    if (ret && vif) {
+        printf("DEBUG: vif_free(vif);\n");
         vif_free(vif);
+    }
 
     printf("DEBUG: exiting vr_interface_add();\n");
     return ret;
