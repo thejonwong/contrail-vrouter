@@ -1474,6 +1474,7 @@ vr_interface_change(struct vr_interface *vif, vr_interface_req *req)
 int
 vr_interface_add(vr_interface_req *req, bool need_response)
 {
+    printf("DEBUG: entering vr_interface_add()\n");
     int ret;
     struct vr_interface *vif = NULL;
     struct vrouter *router = vrouter_get(req->vifr_rid);
@@ -1486,12 +1487,14 @@ vr_interface_add(vr_interface_req *req, bool need_response)
     if (req->vifr_type >= VIF_TYPE_MAX && (ret = -EINVAL))
         goto generate_resp;
 
+    printf("DEBUG: __vrouter_get_interface\n");
     vif = __vrouter_get_interface(router, req->vifr_idx);
     if (vif) {
         ret = vr_interface_change(vif, req);
         goto generate_resp;
     }
 
+    printf("DEBUG: vr_zalloc(sizeof(*vif)\n");
     vif = vr_zalloc(sizeof(*vif));
     if (!vif) {
         ret = -ENOMEM;
@@ -1528,12 +1531,14 @@ vr_interface_add(vr_interface_req *req, bool need_response)
         goto generate_resp;
     }
 
+    printf("DEBUG: memcpy around #1535\n");
     memcpy(vif->vif_mac, req->vifr_mac, sizeof(vif->vif_mac));
     memcpy(vif->vif_rewrite, req->vifr_mac, sizeof(vif->vif_mac));
 
     vif->vif_ip = req->vifr_ip;
 
     if (req->vifr_name) {
+        printf("DEBUG: strncpy(vif->vif_name, req->vifr_name\n");
         strncpy(vif->vif_name, req->vifr_name, sizeof(vif->vif_name));
         vif->vif_name[sizeof(vif->vif_name) - 1] = '\0';
     }
@@ -1546,10 +1551,13 @@ vr_interface_add(vr_interface_req *req, bool need_response)
      */
     vif->vif_rx = vif_discard_rx;
     vif->vif_tx = vif_discard_tx;
+    
+    printf("DEBUG: vrouter_add_interface(vif, req)\n");
     ret = vrouter_add_interface(vif, req);
     if (ret)
         goto generate_resp;
 
+    printf("DEBUG: vif_drv_add(vif, req);\n");
     ret = vif_drv_add(vif, req);
     if (ret) {
         vif_delete(vif);
@@ -1566,6 +1574,7 @@ generate_resp:
     if (ret && vif)
         vif_free(vif);
 
+    printf("DEBUG: exiting vr_interface_add();\n");
     return ret;
 }
 
@@ -2029,4 +2038,3 @@ cleanup:
 
     return ret;
 }
-
