@@ -359,17 +359,6 @@ freebsd_if_get_settings(struct vr_interface *vif,
 	return (-1);
 }
 
-struct vr_host_interface_ops vr_freebsd_interface_ops = {
-	.hif_add			= 	freebsd_if_add,
-	.hif_del			= 	freebsd_if_del,
-	.hif_add_tap		= 	freebsd_if_add_tap,
-	.hif_del_tap		= 	freebsd_if_del_tap,
-	.hif_tx				= 	freebsd_if_tx,
-	.hif_rx				= 	freebsd_if_rx,
-	.hif_get_settings	= 	freebsd_if_get_settings,
-	.hif_get_encap  	=	freebsd_if_get_encap,
-};
-
 static unsigned short
 freebsd_if_get_encap(struct vr_interface *vif)
 {
@@ -390,6 +379,17 @@ freebsd_if_get_encap(struct vr_interface *vif)
 	printf("DEBUG: exiting freebsd_if_get_encap()\n");
 	return VIF_ENCAP_TYPE_ETHER;
 }
+
+struct vr_host_interface_ops vr_freebsd_interface_ops = {
+	.hif_add			= 	freebsd_if_add,
+	.hif_del			= 	freebsd_if_del,
+	.hif_add_tap		= 	freebsd_if_add_tap,
+	.hif_del_tap		= 	freebsd_if_del_tap,
+	.hif_tx				= 	freebsd_if_tx,
+	.hif_rx				= 	freebsd_if_rx,
+	.hif_get_settings	= 	freebsd_if_get_settings,
+	.hif_get_encap  	=	freebsd_if_get_encap,
+};
 
 void
 vr_host_vif_init(struct vrouter *router)
