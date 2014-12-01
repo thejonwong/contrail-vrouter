@@ -372,16 +372,21 @@ struct vr_host_interface_ops vr_freebsd_interface_ops = {
 static unsigned short
 freebsd_if_get_encap(struct vr_interface *vif)
 {
+	printf("DEBUG: entering freebsd_if_get_encap()\n");
 	struct if_data *ifp;
 
 	KASSERT(vif, ("NULL vif"));
 
+	printf("DEBUG: ifp = (struct ifnet *)vif->vif_os;\n");
 	ifp = (struct ifnet *)vif->vif_os;
 	KASSERT(ifp, ("NULL ifp in vif:%p", vif));
 
-	if (ifp && (ifp->ifi_type != IFT_ETHER))
+	if (ifp && (ifp->ifi_type != IFT_ETHER)) {
+		printf("DEBUG: exiting freebsd_if_get_encap()\n");
 		return VIF_ENCAP_TYPE_L3;
+	}
 
+	printf("DEBUG: exiting freebsd_if_get_encap()\n");
 	return VIF_ENCAP_TYPE_ETHER;
 }
 
