@@ -40,6 +40,7 @@
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/if_media.h>
+#include <net/if_types.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <netinet/ip_var.h>
@@ -378,7 +379,7 @@ freebsd_if_get_encap(struct vr_interface *vif)
 	KASSERT(vif, ("NULL vif"));
 
 	printf("DEBUG: ifp = (struct ifnet *)vif->vif_os;\n");
-	ifp = (struct ifnet *)vif->vif_os;
+	ifp = (struct if_data *)vif->vif_os;
 	KASSERT(ifp, ("NULL ifp in vif:%p", vif));
 
 	if (ifp && (ifp->ifi_type != IFT_ETHER)) {
