@@ -1004,8 +1004,10 @@ eth_drv_add(struct vr_interface *vif,
             goto exit_add;
     }
 
-    printf("DEBUG: ret = hif_ops->hif_add(vif);\n");
+    printf("DEBUG: doing ret = hif_ops->hif_add(vif);\n");
     ret = hif_ops->hif_add(vif);
+    printf("DEBUG: done ret = hif_ops->hif_add(vif) with ret=%d;\n", ret);
+
     if (ret)
         goto exit_add;
 
