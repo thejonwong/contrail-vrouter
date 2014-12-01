@@ -992,7 +992,7 @@ eth_drv_add(struct vr_interface *vif,
             vif->vif_rx = vm_rx;
         }
         else {
-            printf("DEBUG: vif->vif_rx = eth_rx;\n")
+            printf("DEBUG: vif->vif_rx = eth_rx;\n");
             vif->vif_rx = eth_rx;
         }
     }
@@ -1028,7 +1028,7 @@ eth_drv_add(struct vr_interface *vif,
         printf("DEBUG: ret = hif_ops->hif_add_tap(vif);\n");
         ret = hif_ops->hif_add_tap(vif);
         if (ret) {
-            printf("DEBUG: hif_ops->hif_del(vif);\n")
+            printf("DEBUG: hif_ops->hif_del(vif);\n");
             hif_ops->hif_del(vif);
         }
     }
