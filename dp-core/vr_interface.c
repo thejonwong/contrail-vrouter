@@ -1034,7 +1034,7 @@ eth_drv_add(struct vr_interface *vif,
      */
 
     printf("DEBUG: if ((!(vif->vif_flags & VIF_FLAG_VHOST_PHYS)) ||"
-            "(vif->vif_bridge)) {\n", ret);
+            "(vif->vif_bridge)) {\n");
     if ((!(vif->vif_flags & VIF_FLAG_VHOST_PHYS)) ||
             (vif->vif_bridge)) {
         printf("DEBUG: doing ret = hif_ops->hif_add_tap(vif);\n");
