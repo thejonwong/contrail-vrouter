@@ -1008,13 +1008,20 @@ eth_drv_add(struct vr_interface *vif,
     ret = hif_ops->hif_add(vif);
     printf("DEBUG: done ret = hif_ops->hif_add(vif) with ret=%d;\n", ret);
 
-    if (ret)
+    if (ret) {
+        printf("DEBUG: goto exit_add;\n");
         goto exit_add;
+    }
 
+    printf("DEBUG: if ((vif->vif_type == VIF_TYPE_PHYSICAL) &&"
+            "(hif_ops->hif_get_encap(vif) == VIF_ENCAP_TYPE_L3)) {\n");
     if ((vif->vif_type == VIF_TYPE_PHYSICAL) &&
             (hif_ops->hif_get_encap(vif) == VIF_ENCAP_TYPE_L3)) {
             printf("DEBUG: vif->vif_rx = tun_rx;\n");
             vif->vif_rx = tun_rx;
+    }
+    else {
+        printf("DEBUG: did not do that.%d;\n", ret);
     }
 
     /*
@@ -1025,17 +1032,31 @@ eth_drv_add(struct vr_interface *vif,
      * here, such packets will be blackholed. hence, do not tap the interface
      * if the interface is set to be associated with a vhost interface.
      */
+
+    printf("DEBUG: if ((!(vif->vif_flags & VIF_FLAG_VHOST_PHYS)) ||"
+            "(vif->vif_bridge)) {\n", ret);
     if ((!(vif->vif_flags & VIF_FLAG_VHOST_PHYS)) ||
             (vif->vif_bridge)) {
-        printf("DEBUG: ret = hif_ops->hif_add_tap(vif);\n");
+        printf("DEBUG: doing ret = hif_ops->hif_add_tap(vif);\n");
         ret = hif_ops->hif_add_tap(vif);
+        printf("DEBUG: done ret = hif_ops->hif_add_tap(vif) "
+                    "with ret=%d;\n", ret);
+        printf("DEBUG: if (ret) { (in vr_interface.c:1044)\n");
         if (ret) {
             printf("DEBUG: hif_ops->hif_del(vif);\n");
             hif_ops->hif_del(vif);
         }
+        else {
+            printf("DEBUG: did not do that.%d;\n", ret);
+        }
+    }
+    else {
+        printf("DEBUG: did not do that.%d;\n", ret);
     }
 
+
 exit_add:
+    printf("DEBUG: went to exit_add;\n");
     if (ret) {
         if (vif->vif_flags & VIF_FLAG_SERVICE_IF) {
             printf("DEBUG: vr_interface_service_disable(vif);\n");
