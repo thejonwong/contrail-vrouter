@@ -966,39 +966,52 @@ static int
 eth_drv_add(struct vr_interface *vif,
         vr_interface_req *vifr __attribute__((unused)))
 {
+    printf("DEBUG: entering eth_drv_add()\n");
     int ret = 0;
 
     if (!vif->vif_os_idx)
         return -EINVAL;
 
     if (!vif->vif_mtu) {
+        printf("DEBUG: vif->vif_mtu = 9160;\n");
         vif->vif_mtu = 9160;
         if (vif->vif_type == VIF_TYPE_PHYSICAL)
+            printf("DEBUG: vif->vif_mtu = 1514;\n");
             vif->vif_mtu = 1514;
     }
 
+    printf("DEBUG: vif->vif_set_rewrite = vif_cmn_rewrite;\n");
     vif->vif_set_rewrite = vif_cmn_rewrite;
 
     if (vif->vif_type != VIF_TYPE_STATS) {
+        printf("DEBUG: vif->vif_tx = eth_tx;\n");
         vif->vif_tx = eth_tx;
-        if (vif_is_virtual(vif))
+        printf("DEBUG: if (vif_is_virtual(vif)) {\n");
+        if (vif_is_virtual(vif)) {
+            printf("DEBUG: vif->vif_rx = vm_rx;\n");
             vif->vif_rx = vm_rx;
-        else
+        }
+        else {
+            printf("DEBUG: vif->vif_rx = eth_rx;\n")
             vif->vif_rx = eth_rx;
+        }
     }
 
     if (vif->vif_flags & VIF_FLAG_SERVICE_IF) {
+        printf("DEBUG: ret = vr_interface_service_enable(vif);\n");
         ret = vr_interface_service_enable(vif);
         if (ret)
             goto exit_add;
     }
 
+    printf("DEBUG: ret = hif_ops->hif_add(vif);\n");
     ret = hif_ops->hif_add(vif);
     if (ret)
         goto exit_add;
 
     if ((vif->vif_type == VIF_TYPE_PHYSICAL) &&
             (hif_ops->hif_get_encap(vif) == VIF_ENCAP_TYPE_L3)) {
+            printf("DEBUG: vif->vif_rx = tun_rx;\n");
             vif->vif_rx = tun_rx;
     }
 
@@ -1012,16 +1025,23 @@ eth_drv_add(struct vr_interface *vif,
      */
     if ((!(vif->vif_flags & VIF_FLAG_VHOST_PHYS)) ||
             (vif->vif_bridge)) {
+        printf("DEBUG: ret = hif_ops->hif_add_tap(vif);\n");
         ret = hif_ops->hif_add_tap(vif);
-        if (ret)
+        if (ret) {
+            printf("DEBUG: hif_ops->hif_del(vif);\n")
             hif_ops->hif_del(vif);
+        }
     }
 
 exit_add:
-    if (ret)
-        if (vif->vif_flags & VIF_FLAG_SERVICE_IF)
+    if (ret) {
+        if (vif->vif_flags & VIF_FLAG_SERVICE_IF) {
+            printf("DEBUG: vr_interface_service_disable(vif);\n");
             vr_interface_service_disable(vif);
+        }
+    }
 
+    printf("DEBUG: exiting eth_drv_add() with return=ret\n");
     return ret;
 }
 /* end eth driver */
