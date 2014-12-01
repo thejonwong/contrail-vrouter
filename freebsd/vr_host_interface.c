@@ -160,20 +160,29 @@ freebsd_rx_handler(struct ifnet *ifp, struct mbuf *m)
 static int
 freebsd_if_add(struct vr_interface *vif)
 {
+	printf("DEBUG: entering freebsd_if_add() called from eth_drv_add()"
+			" in vr_interface.c\n");
 	struct ifnet *ifp;
 
 	if (vif->vif_os_idx) {
+		printf("DEBUG: ifp = ifnet_byindex_ref(vif->vif_os_idx);\n");
 		ifp = ifnet_byindex_ref(vif->vif_os_idx);
 		KASSERT(ifp, ("Can't find ifnet at idx:%d", vif->vif_os_idx));
 
+		printf("DEBUG: vif->vif_os = (void *)ifp;\n");
 		vif->vif_os = (void *)ifp;
+		printf("DEBUG: ifp->if_pspare[1] = (void *)vif;\n");
 		ifp->if_pspare[1] = (void *)vif;
 	}
 
 	/* In case of vhost dev, let it know which vif is for it */
-	if (vif_is_vhost(vif))
+	printf("DEBUG: if (vif_is_vhost(vif))\n");
+	if (vif_is_vhost(vif)) {
+		printf("DEBUG: vhost_if_add(vif);\n");
 		vhost_if_add(vif);
+	}
 
+	printf("DEBUG: exiting freebsd_if_add()\n");
 	return (0);
 }
 
