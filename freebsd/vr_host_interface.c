@@ -372,11 +372,13 @@ freebsd_if_get_encap(struct vr_interface *vif)
 	KASSERT(ifp, ("NULL ifp in vif:%p", vif));
 
 	if (ifp && (ifp->ifi_type != IFT_ETHER)) {
-		printf("DEBUG: exiting freebsd_if_get_encap()\n");
+		printf("DEBUG: exiting freebsd_if_get_encap(), "
+				"returning VIF_ENCAP_TYPE_L3\n");
 		return VIF_ENCAP_TYPE_L3;
 	}
 
-	printf("DEBUG: exiting freebsd_if_get_encap()\n");
+	printf("DEBUG: exiting freebsd_if_get_encap(), "
+			"returning VIF_ENCAP_TYPE_ETHER\n");
 	return VIF_ENCAP_TYPE_ETHER;
 }
 

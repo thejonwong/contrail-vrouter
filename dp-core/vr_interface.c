@@ -1041,17 +1041,18 @@ eth_drv_add(struct vr_interface *vif,
         ret = hif_ops->hif_add_tap(vif);
         printf("DEBUG: done ret = hif_ops->hif_add_tap(vif) "
                     "with ret=%d;\n", ret);
+
         printf("DEBUG: if (ret) { (in vr_interface.c:1044)\n");
         if (ret) {
             printf("DEBUG: hif_ops->hif_del(vif);\n");
             hif_ops->hif_del(vif);
         }
         else {
-            printf("DEBUG: did not do that.%d;\n", ret);
+            printf("DEBUG: did not do that;\n");
         }
     }
     else {
-        printf("DEBUG: did not do that.%d;\n", ret);
+        printf("DEBUG: did not do that;\n");
     }
 
 
@@ -1064,7 +1065,7 @@ exit_add:
         }
     }
 
-    printf("DEBUG: exiting eth_drv_add() with return=ret\n");
+    printf("DEBUG: exiting eth_drv_add() with return=%d\n", ret);
     return ret;
 }
 /* end eth driver */
