@@ -40,6 +40,7 @@
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/if_media.h>
+#include <net/if_types.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <netinet/ip_var.h>
@@ -160,20 +161,29 @@ freebsd_rx_handler(struct ifnet *ifp, struct mbuf *m)
 static int
 freebsd_if_add(struct vr_interface *vif)
 {
+	printf("DEBUG: entering freebsd_if_add() called from eth_drv_add()"
+			" in vr_interface.c\n");
 	struct ifnet *ifp;
 
 	if (vif->vif_os_idx) {
+		printf("DEBUG: ifp = ifnet_byindex_ref(vif->vif_os_idx);\n");
 		ifp = ifnet_byindex_ref(vif->vif_os_idx);
 		KASSERT(ifp, ("Can't find ifnet at idx:%d", vif->vif_os_idx));
 
+		printf("DEBUG: vif->vif_os = (void *)ifp;\n");
 		vif->vif_os = (void *)ifp;
+		printf("DEBUG: ifp->if_pspare[1] = (void *)vif;\n");
 		ifp->if_pspare[1] = (void *)vif;
 	}
 
 	/* In case of vhost dev, let it know which vif is for it */
-	if (vif_is_vhost(vif))
+	printf("DEBUG: if (vif_is_vhost(vif))\n");
+	if (vif_is_vhost(vif)) {
+		printf("DEBUG: vhost_if_add(vif);\n");
 		vhost_if_add(vif);
+	}
 
+	printf("DEBUG: exiting freebsd_if_add()\n");
 	return (0);
 }
 
@@ -349,14 +359,38 @@ freebsd_if_get_settings(struct vr_interface *vif,
 	return (-1);
 }
 
+static unsigned short
+freebsd_if_get_encap(struct vr_interface *vif)
+{
+	printf("DEBUG: entering freebsd_if_get_encap()\n");
+	struct if_data *ifp;
+
+	KASSERT(vif, ("NULL vif"));
+
+	printf("DEBUG: ifp = (struct ifnet *)vif->vif_os;\n");
+	ifp = (struct if_data *)vif->vif_os;
+	KASSERT(ifp, ("NULL ifp in vif:%p", vif));
+
+	if (ifp && (ifp->ifi_type != IFT_ETHER)) {
+		printf("DEBUG: exiting freebsd_if_get_encap(), "
+				"returning VIF_ENCAP_TYPE_L3\n");
+		return VIF_ENCAP_TYPE_L3;
+	}
+
+	printf("DEBUG: exiting freebsd_if_get_encap(), "
+			"returning VIF_ENCAP_TYPE_ETHER\n");
+	return VIF_ENCAP_TYPE_ETHER;
+}
+
 struct vr_host_interface_ops vr_freebsd_interface_ops = {
-	.hif_add		= freebsd_if_add,
-	.hif_del		= freebsd_if_del,
-	.hif_add_tap		= freebsd_if_add_tap,
-	.hif_del_tap		= freebsd_if_del_tap,
-	.hif_tx			= freebsd_if_tx,
-	.hif_rx			= freebsd_if_rx,
-	.hif_get_settings	= freebsd_if_get_settings,
+	.hif_add			= 	freebsd_if_add,
+	.hif_del			= 	freebsd_if_del,
+	.hif_add_tap		= 	freebsd_if_add_tap,
+	.hif_del_tap		= 	freebsd_if_del_tap,
+	.hif_tx				= 	freebsd_if_tx,
+	.hif_rx				= 	freebsd_if_rx,
+	.hif_get_settings	= 	freebsd_if_get_settings,
+	.hif_get_encap  	=	freebsd_if_get_encap,
 };
 
 void

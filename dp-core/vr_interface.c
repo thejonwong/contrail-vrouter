@@ -977,40 +977,62 @@ static int
 eth_drv_add(struct vr_interface *vif,
         vr_interface_req *vifr __attribute__((unused)))
 {
+    printf("DEBUG: entering eth_drv_add()\n");
     int ret = 0;
 
     if (!vif->vif_os_idx)
         return -EINVAL;
 
     if (!vif->vif_mtu) {
+        printf("DEBUG: vif->vif_mtu = 9160;\n");
         vif->vif_mtu = 9160;
         if (vif->vif_type == VIF_TYPE_PHYSICAL)
+            printf("DEBUG: vif->vif_mtu = 1514;\n");
             vif->vif_mtu = 1514;
     }
 
+    printf("DEBUG: vif->vif_set_rewrite = vif_cmn_rewrite;\n");
     vif->vif_set_rewrite = vif_cmn_rewrite;
 
     if (vif->vif_type != VIF_TYPE_STATS) {
+        printf("DEBUG: vif->vif_tx = eth_tx;\n");
         vif->vif_tx = eth_tx;
-        if (vif_is_virtual(vif))
+        printf("DEBUG: if (vif_is_virtual(vif)) {\n");
+        if (vif_is_virtual(vif)) {
+            printf("DEBUG: vif->vif_rx = vm_rx;\n");
             vif->vif_rx = vm_rx;
-        else
+        }
+        else {
+            printf("DEBUG: vif->vif_rx = eth_rx;\n");
             vif->vif_rx = eth_rx;
+        }
     }
 
     if (vif->vif_flags & VIF_FLAG_SERVICE_IF) {
+        printf("DEBUG: ret = vr_interface_service_enable(vif);\n");
         ret = vr_interface_service_enable(vif);
         if (ret)
             goto exit_add;
     }
 
+    printf("DEBUG: doing ret = hif_ops->hif_add(vif);\n");
     ret = hif_ops->hif_add(vif);
-    if (ret)
-        goto exit_add;
+    printf("DEBUG: done ret = hif_ops->hif_add(vif) with ret=%d;\n", ret);
 
+    if (ret) {
+        printf("DEBUG: goto exit_add;\n");
+        goto exit_add;
+    }
+
+    printf("DEBUG: if ((vif->vif_type == VIF_TYPE_PHYSICAL) &&"
+            "(hif_ops->hif_get_encap(vif) == VIF_ENCAP_TYPE_L3)) {\n");
     if ((vif->vif_type == VIF_TYPE_PHYSICAL) &&
             (hif_ops->hif_get_encap(vif) == VIF_ENCAP_TYPE_L3)) {
+            printf("DEBUG: vif->vif_rx = tun_rx;\n");
             vif->vif_rx = tun_rx;
+    }
+    else {
+        printf("DEBUG: did not do that.%d;\n", ret);
     }
 
     /*
@@ -1021,18 +1043,40 @@ eth_drv_add(struct vr_interface *vif,
      * here, such packets will be blackholed. hence, do not tap the interface
      * if the interface is set to be associated with a vhost interface.
      */
+
+    printf("DEBUG: if ((!(vif->vif_flags & VIF_FLAG_VHOST_PHYS)) ||"
+            "(vif->vif_bridge)) {\n");
     if ((!(vif->vif_flags & VIF_FLAG_VHOST_PHYS)) ||
             (vif->vif_bridge)) {
+        printf("DEBUG: doing ret = hif_ops->hif_add_tap(vif);\n");
         ret = hif_ops->hif_add_tap(vif);
-        if (ret)
+        printf("DEBUG: done ret = hif_ops->hif_add_tap(vif) "
+                    "with ret=%d;\n", ret);
+
+        printf("DEBUG: if (ret) { (in vr_interface.c:1044)\n");
+        if (ret) {
+            printf("DEBUG: hif_ops->hif_del(vif);\n");
             hif_ops->hif_del(vif);
+        }
+        else {
+            printf("DEBUG: did not do that;\n");
+        }
+    }
+    else {
+        printf("DEBUG: did not do that;\n");
     }
 
-exit_add:
-    if (ret)
-        if (vif->vif_flags & VIF_FLAG_SERVICE_IF)
-            vr_interface_service_disable(vif);
 
+exit_add:
+    printf("DEBUG: went to exit_add;\n");
+    if (ret) {
+        if (vif->vif_flags & VIF_FLAG_SERVICE_IF) {
+            printf("DEBUG: vr_interface_service_disable(vif);\n");
+            vr_interface_service_disable(vif);
+        }
+    }
+
+    printf("DEBUG: exiting eth_drv_add() with return=%d\n", ret);
     return ret;
 }
 /* end eth driver */
@@ -1390,26 +1434,40 @@ vif_find(struct vrouter *router, char *name)
 static int
 vif_drv_add(struct vr_interface *vif, vr_interface_req *req)
 {
+    printf("DEBUG: entering vif_drv_add();\n");
     int ret = 0;
 
+    printf("DEBUG: if (vif_drivers[vif->vif_type].drv_add) {;\n");
     if (vif_drivers[vif->vif_type].drv_add) {
-        if (hif_ops->hif_lock)
+        if (hif_ops->hif_lock) {
+            printf("DEBUG: hif_ops->hif_lock();\n");
             hif_ops->hif_lock();
+        }
 
+        printf("DEBUG: ret = vif_drivers[vif->vif_type].drv_add(vif, req);\n");
         ret = vif_drivers[vif->vif_type].drv_add(vif, req);
 
         /*
          * the check is right. If you haven't defined unlock, you deserve the
          * crash
          */
-        if (hif_ops->hif_lock)
+        printf("DEBUG: if (hif_ops->hif_lock) {\n");
+        if (hif_ops->hif_lock) {
+            printf("DEBUG: hif_ops->hif_unlock();\n");
             hif_ops->hif_unlock();
+        }
 
-        if (ret)
+        if (ret) {
+            printf("DEBUG: exiting vif_drv_add() with return=ret;\n");
             return ret;
+        }
     }
 
+    printf("DEBUG: vif->vif_driver = &vif_drivers[vif->vif_type];\n");
     vif->vif_driver = &vif_drivers[vif->vif_type];
+
+    printf("DEBUG: exiting vif_drv_add() with return=0;\n");
+
     return 0;
 
 }
@@ -1485,6 +1543,7 @@ vr_interface_change(struct vr_interface *vif, vr_interface_req *req)
 int
 vr_interface_add(vr_interface_req *req, bool need_response)
 {
+    printf("DEBUG: entering vr_interface_add()\n");
     int ret;
     struct vr_interface *vif = NULL;
     struct vrouter *router = vrouter_get(req->vifr_rid);
@@ -1497,12 +1556,14 @@ vr_interface_add(vr_interface_req *req, bool need_response)
     if (req->vifr_type >= VIF_TYPE_MAX && (ret = -EINVAL))
         goto generate_resp;
 
+    printf("DEBUG: __vrouter_get_interface\n");
     vif = __vrouter_get_interface(router, req->vifr_idx);
     if (vif) {
         ret = vr_interface_change(vif, req);
         goto generate_resp;
     }
 
+    printf("DEBUG: vr_zalloc(sizeof(*vif)\n");
     vif = vr_zalloc(sizeof(*vif));
     if (!vif) {
         ret = -ENOMEM;
@@ -1539,12 +1600,14 @@ vr_interface_add(vr_interface_req *req, bool need_response)
         goto generate_resp;
     }
 
+    printf("DEBUG: memcpy around #1535\n");
     memcpy(vif->vif_mac, req->vifr_mac, sizeof(vif->vif_mac));
     memcpy(vif->vif_rewrite, req->vifr_mac, sizeof(vif->vif_mac));
 
     vif->vif_ip = req->vifr_ip;
 
     if (req->vifr_name) {
+        printf("DEBUG: strncpy(vif->vif_name, req->vifr_name\n");
         strncpy(vif->vif_name, req->vifr_name, sizeof(vif->vif_name));
         vif->vif_name[sizeof(vif->vif_name) - 1] = '\0';
     }
@@ -1557,26 +1620,38 @@ vr_interface_add(vr_interface_req *req, bool need_response)
      */
     vif->vif_rx = vif_discard_rx;
     vif->vif_tx = vif_discard_tx;
+    
+    printf("DEBUG: vrouter_add_interface(vif, req)\n");
     ret = vrouter_add_interface(vif, req);
     if (ret)
         goto generate_resp;
 
+    printf("DEBUG: vif_drv_add(vif, req);\n");
     ret = vif_drv_add(vif, req);
     if (ret) {
+        printf("DEBUG: vif_delete(vif);\n");
         vif_delete(vif);
+        printf("DEBUG: vif = NULL;\n");
         vif = NULL;
     }
 
-    if (!ret)
+    if (!ret) {
+        printf("DEBUG: vrouter_setup_vif(vif);\n");
         vrouter_setup_vif(vif);
+    }
 
 generate_resp:
-    if (need_response)
+    if (need_response) {
+        printf("DEBUG: vr_send_response(ret);\n");
         vr_send_response(ret);
+    }
 
-    if (ret && vif)
+    if (ret && vif) {
+        printf("DEBUG: vif_free(vif);\n");
         vif_free(vif);
+    }
 
+    printf("DEBUG: exiting vr_interface_add();\n");
     return ret;
 }
 
@@ -2040,4 +2115,3 @@ cleanup:
 
     return ret;
 }
-

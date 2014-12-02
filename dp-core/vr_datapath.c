@@ -23,7 +23,7 @@ vr_grat_arp(struct vr_arp *sarp)
 }
 
 static int 
-vr_v6_prefix_is_ll(uint8_t prefix[])  
+vr_v6_prefix_is_ll(uint8_t *prefix)  
 {
     if ((prefix[0] == 0xFE) && (prefix[1] == 0x80)) {
         return true;
@@ -618,4 +618,3 @@ vr_tag_pkt(struct vr_packet *pkt, unsigned short vlan_id)
     *vlan_tag = htons(vlan_id);
     return 0;
 }
-
