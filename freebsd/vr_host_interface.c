@@ -373,7 +373,8 @@ freebsd_if_get_encap(struct vr_interface *vif)
 
 	if (ifp && (ifp->ifi_type != IFT_ETHER)) {
 		printf("DEBUG: exiting freebsd_if_get_encap(), "
-				"returning VIF_ENCAP_TYPE_L3\n");
+				"returning VIF_ENCAP_TYPE_L3"
+				"ifp->ifi_type==%04x\n", ifp->ifi_type);
 		return VIF_ENCAP_TYPE_L3;
 	}
 
