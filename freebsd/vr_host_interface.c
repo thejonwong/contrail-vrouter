@@ -363,7 +363,7 @@ static unsigned short
 freebsd_if_get_encap(struct vr_interface *vif)
 {
 	printf("DEBUG: entering freebsd_if_get_encap()\n");
-	struct ifnet *ifp
+	struct ifnet *ifp;
 	struct if_data *ifdp;
 
 	KASSERT(vif, ("NULL vif"));
