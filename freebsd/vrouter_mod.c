@@ -674,7 +674,7 @@ struct host_os freebsd_host = {
 	.hos_pfrag_len			= fh_pfrag_len,
 	.hos_phead_len			= fh_phead_len,
 	.hos_pset_data			= fh_pset_data,
-	.hos_pgso_size			= lh_pgso_size,
+	.hos_pgso_size			= fh_pgso_size,
 
 	.hos_get_cpu			= fh_get_cpu,
 	.hos_schedule_work		= fh_schedule_work,
