@@ -1217,6 +1217,7 @@ static int
 nh_gre_tunnel(unsigned short vrf, struct vr_packet *pkt,
         struct vr_nexthop *nh, struct vr_forwarding_md *fmd)
 {
+    printf("DEBUG: entering nh_gre_tunnel();\n");
     unsigned int id;
     int gre_head_space;
     unsigned short drop_reason = VP_DROP_INVALID_NH;
@@ -1229,12 +1230,17 @@ nh_gre_tunnel(unsigned short vrf, struct vr_packet *pkt,
     struct vr_df_trap_arg trap_arg;
 
     if (vr_mudp && vr_perfs) {
+        printf("DEBUG: return nh_mpls_udp_tunnel(vrf, pkt, nh, fmd);\n");
+
         return nh_mpls_udp_tunnel(vrf, pkt, nh, fmd);
     }
 
+    printf("DEBUG: stats = vr_inet_vrf_stats(vrf, pkt->vp_cpu);\n");
     stats = vr_inet_vrf_stats(vrf, pkt->vp_cpu);
-    if (stats)
+    if (stats) {
+        printf("DEBUG: stats->vrf_gre_mpls_tunnels++;\n");
         stats->vrf_gre_mpls_tunnels++;
+    }
 
     /*
      * When the packet encounters a tunnel nexthop with policy enabled,
@@ -1248,100 +1254,144 @@ nh_gre_tunnel(unsigned short vrf, struct vr_packet *pkt,
      * the same) server. vr_forward->tunnel_nh->nh_output sets pkt->vp_nh
      * (source is ECMP)->pass through flow lookup->
      */ 
-    if (!fmd || fmd->fmd_label < 0)
+    if (!fmd || fmd->fmd_label < 0) {
+        printf("DEBUG: return vr_forward(nh->nh_router, vrf, pkt, fmd);\n");
         return vr_forward(nh->nh_router, vrf, pkt, fmd);
-
-
-    if (vr_perfs)
-        pkt->vp_flags |= VP_FLAG_GSO;
-
-    if (pkt->vp_type != VP_TYPE_L2) {
-        ip = (struct vr_ip *)pkt_network_header(pkt);
-        id = ip->ip_id;
-    } else {
-        id = htons(vr_generate_unique_ip_id());
     }
 
 
+    if (vr_perfs) {
+        printf("DEBUG: pkt->vp_flags |= VP_FLAG_GSO;\n");
+        pkt->vp_flags |= VP_FLAG_GSO;
+    }
+
+    if (pkt->vp_type != VP_TYPE_L2) {
+        printf("DEBUG: ip = (struct vr_ip *)pkt_network_header(pkt);\n");
+        ip = (struct vr_ip *)pkt_network_header(pkt);
+        printf("DEBUG: id = ip->ip_id;\n");
+        id = ip->ip_id;
+    } else {
+        printf("DEBUG: id = htons(vr_generate_unique_ip_id());\n");
+        id = htons(vr_generate_unique_ip_id());
+    }
+
+    printf("DEBUG: gre_head_space = VR_MPLS_HDR_LEN + ...\n");
     gre_head_space = VR_MPLS_HDR_LEN + sizeof(struct vr_ip) +
         sizeof(struct vr_gre);
 
     if (pkt->vp_type == VP_TYPE_IP) {
+        printf("DEBUG: if (vr_has_to_fragment(nh->nh_dev, ...\n");
         if (vr_has_to_fragment(nh->nh_dev, pkt, gre_head_space) &&
                 vr_ip_dont_fragment_set(pkt)) {
+            printf("DEBUG: trap_arg.df_mtu = vif_get_mtu(nh->nh_dev) - gre_head_space;\n");
             trap_arg.df_mtu = vif_get_mtu(nh->nh_dev) - gre_head_space;
+            printf("DEBUG: trap_arg.df_flow_index = fmd->fmd_flow_index;\n");
             trap_arg.df_flow_index = fmd->fmd_flow_index;
+            printf("DEBUG: return vr_trap(pkt, vrf, AGENT_TRAP_HANDLE_DF, (void *)&trap_arg);\n");
             return vr_trap(pkt, vrf, AGENT_TRAP_HANDLE_DF, (void *)&trap_arg);
         }
     }
 
+    printf("DEBUG: gre_head_space += nh->nh_gre_tun_encap_len;\n");
     gre_head_space += nh->nh_gre_tun_encap_len;
 
+    printf("DEBUG: if (pkt_head_space(pkt) < gre_head_space) {\n");
     if (pkt_head_space(pkt) < gre_head_space) {
+        printf("DEBUG: tmp_pkt = vr_pexpand_head(pkt, gre_head_space - pkt_head_space(pkt));\n");
         tmp_pkt = vr_pexpand_head(pkt, gre_head_space - pkt_head_space(pkt));
         if (!tmp_pkt) {
+            printf("DEBUG: drop_reason = VP_DROP_HEAD_ALLOC_FAIL;\n");
             drop_reason = VP_DROP_HEAD_ALLOC_FAIL;
             goto send_fail;
         }
+        printf("DEBUG: pkt = tmp_pkt;\n");
         pkt = tmp_pkt;
     }
 
+    printf("DEBUG: pkt = tmp_pkt;\n");
     if (nh_push_mpls_header(pkt, fmd->fmd_label) < 0)
         goto send_fail;
 
+    printf("DEBUG: gre_hdr = (struct vr_gre *)pkt_push(pkt, sizeof(struct vr_gre));\n");
     gre_hdr = (struct vr_gre *)pkt_push(pkt, sizeof(struct vr_gre));
     if (!gre_hdr) {
+        printf("DEBUG: drop_reason = VP_DROP_PUSH;\n");
         drop_reason = VP_DROP_PUSH;
         goto send_fail;
     }
 
+    printf("DEBUG: gre_hdr->gre_flags = 0;\n");
     gre_hdr->gre_flags = 0;
+    printf("DEBUG: gre_hdr->gre_proto = VR_GRE_PROTO_MPLS_NO;\n");
     gre_hdr->gre_proto = VR_GRE_PROTO_MPLS_NO;
 
+    printf("DEBUG:ip = (struct vr_ip *)pkt_push(pkt, sizeof(struct vr_ip));\n");
     ip = (struct vr_ip *)pkt_push(pkt, sizeof(struct vr_ip));
     if (!ip) {
+        printf("DEBUG: drop_reason = VP_DROP_PUSH;\n");
         drop_reason = VP_DROP_PUSH;
         goto send_fail;
     }
+    printf("DEBUG: pkt_set_network_header(pkt, pkt->vp_data);\n");
     pkt_set_network_header(pkt, pkt->vp_data);
-    if (pkt->vp_type == VP_TYPE_L2)
+    if (pkt->vp_type == VP_TYPE_L2) {
+        printf("DEBUG: pkt->vp_type = VP_TYPE_L2OIP;\n");
         pkt->vp_type = VP_TYPE_L2OIP;
-    else if (pkt->vp_type == VP_TYPE_IP6)
+    }
+    else if (pkt->vp_type == VP_TYPE_IP6) {
+        printf("DEBUG: pkt->vp_type = VP_TYPE_IP6OIP;\n");
         pkt->vp_type = VP_TYPE_IP6OIP;
-    else 
+    }
+    else {
+        printf("DEBUG: pkt->vp_type = VP_TYPE_IPOIP;\n");
         pkt->vp_type = VP_TYPE_IPOIP;
+    }
 
+    printf("DEBUG: block of ip->... = ... around #1350;\n");
     ip->ip_version = 4;
     ip->ip_hl = 5;
     ip->ip_tos = 0;
     ip->ip_id = id;
     ip->ip_frag_off = 0;
 
+    printf("DEBUG:if (vr_pkt_is_diag(pkt)) {\n");
     if (vr_pkt_is_diag(pkt)) {
+        printf("DEBUG: ip->ip_ttl = pkt->vp_ttl;\n");
         ip->ip_ttl = pkt->vp_ttl;
     } else {
+        printf("DEBUG: ip->ip_ttl = 64;\n");
         ip->ip_ttl = 64;
     }
 
+    printf("DEBUG: block of ip->... = ... around #1366;\n");
     ip->ip_proto = VR_IP_PROTO_GRE;
     ip->ip_saddr = nh->nh_gre_tun_sip;
     ip->ip_daddr = nh->nh_gre_tun_dip;
+    printf("DEBUG: ip->ip_len = htons(pkt_len(pkt));\n");
     ip->ip_len = htons(pkt_len(pkt));
     /* checksum will be calculated in linux_xmit_segment */
 
     /* slap l2 header */
+    printf("DEBUG: vif = nh->nh_dev;\n");
     vif = nh->nh_dev;
+    printf("DEBUG: tun_encap = vif->vif_set_rewrite(vif, pkt, nh->nh_data,\n");
     tun_encap = vif->vif_set_rewrite(vif, pkt, nh->nh_data,
             nh->nh_gre_tun_encap_len);
     if (!tun_encap) {
+        printf("DEBUG: drop_reason = VP_DROP_PUSH;\n");
         drop_reason = VP_DROP_PUSH;
         goto send_fail;
     }
+    printf("DEBUG: vif->vif_tx(vif, pkt);\n");
     vif->vif_tx(vif, pkt);
+    printf("DEBUG: exiting nh_gre_tunnel() with return=0\n");
     return 0;
 
 send_fail:
+    printf("DEBUG: entering send_fail;\n");
+    printf("DEBUG: vr_pfree(pkt, drop_reason);\n");
     vr_pfree(pkt, drop_reason);
+    printf("DEBUG: exiting nh_gre_tunnel() with return=0\n");
     return 0;
 }
 
