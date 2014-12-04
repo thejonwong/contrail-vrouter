@@ -739,11 +739,11 @@ vr_has_to_fragment(struct vr_interface *vif, struct vr_packet *pkt,
     }
 
     if ((len + tun_len) > mtu) {
-        printf("DEBUG: vr_has_to_fragment() with return=true\n");
+        printf("DEBUG: exiting vr_has_to_fragment() with return=true\n");
         return true;
     }
 
-    printf("DEBUG: vr_has_to_fragment() with return=false\n");
+    printf("DEBUG: exiting vr_has_to_fragment() with return=false\n");
     return false;
 }
 

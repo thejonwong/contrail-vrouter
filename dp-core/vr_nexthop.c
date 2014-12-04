@@ -1308,7 +1308,7 @@ nh_gre_tunnel(unsigned short vrf, struct vr_packet *pkt,
         pkt = tmp_pkt;
     }
 
-    printf("DEBUG: pkt = tmp_pkt;\n");
+    printf("if (nh_push_mpls_header(pkt, fmd->fmd_label) < 0);\n");
     if (nh_push_mpls_header(pkt, fmd->fmd_label) < 0)
         goto send_fail;
 

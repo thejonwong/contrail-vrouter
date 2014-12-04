@@ -1078,7 +1078,7 @@ static struct vr_interface_driver vif_drivers[VIF_TYPE_MAX] = {
 unsigned int
 vif_get_mtu(struct vr_interface *vif)
 {
-    printf("DEBUG: vif_get_mtu();\n");
+    printf("DEBUG: entering vif_get_mtu();\n");
     printf("DEBUG: return hif_ops->hif_get_mtu(vif);\n");
     return hif_ops->hif_get_mtu(vif);
 }
