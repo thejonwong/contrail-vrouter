@@ -369,15 +369,22 @@ static unsigned int
 freebsd_if_get_mtu(struct vr_interface *vif)
 {
 	printf("DEBUG: entering freebsd_if_get_mtu();\n");
-	//struct net_device *dev = (struct net_device *)vif->vif_os;
+	struct ifnet *ifp;
+	struct if_data *ifdp;
 
-	//if (dev)
-	//	return dev->mtu;
-	//else
-	//	return vif->vif_mtu;
+	ifp = (struct ifnet *)vif->vif_os;
+	ifdp = &ifp->if_data;
 
-	printf("DEBUG: exiting freebsd_if_get_mtu() with return=1;\n");
-	return 1;
+	// (woz@semihalf.com): ifi_mtu is unsigned long, but
+	// this casting is probably a bad idea.
+	if (ifdp) {
+		printf("DEBUG: exiting freebsd_if_get_mtu() with return=%d;\n", ifdp->ifi_mtu);
+		return (unsigned int)ifdp->ifi_mtu;
+	}
+	else {
+		printf("DEBUG: exiting freebsd_if_get_mtu() with return=%d;\n", vif->vif_mtu);
+		return vif->vif_mtu;
+	}
 }
 
 struct vr_host_interface_ops vr_freebsd_interface_ops = {
