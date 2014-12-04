@@ -386,11 +386,17 @@ static inline unsigned char *pkt_network_header(struct vr_packet *);
 static inline bool
 vr_ip_dont_fragment_set(struct vr_packet *pkt)
 {
+    printf("DEBUG: entering vr_ip_dont_fragment_set();\n");
     struct vr_ip *ip;
 
+    printf("DEBUG: ip = (struct vr_ip *)pkt_network_header(pkt);\n");
     ip = (struct vr_ip *)pkt_network_header(pkt);
-    if (ntohs(ip->ip_frag_off) & VR_IP_DF)
+    if (ntohs(ip->ip_frag_off) & VR_IP_DF) {
+        printf("DEBUG: vr_ip_dont_fragment_set() with return=true\n");
         return true;
+    }
+
+    printf("DEBUG: vr_ip_dont_fragment_set() with return=false\n");
     return false;
 }
 

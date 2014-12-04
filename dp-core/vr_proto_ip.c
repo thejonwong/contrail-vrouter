@@ -701,33 +701,48 @@ bool
 vr_has_to_fragment(struct vr_interface *vif, struct vr_packet *pkt,
         unsigned int tun_len)
 {
+    printf("DEBUG: entering vr_has_to_fragment();\n");
     unsigned int len;
     struct vr_ip *ip;
     struct vr_tcp *tcp;
     unsigned int mtu = vif_get_mtu(vif);
 
+    printf("DEBUG: if (pkt_is_gso(pkt)) {\n");
     if (pkt_is_gso(pkt)) {
+        printf("DEBUG: len = vr_pgso_size(pkt);\n");
         len = vr_pgso_size(pkt);
-        if (len > mtu)
+        if (len > mtu) {
+            printf("DEBUG: vr_has_to_fragment() with return=true\n");
             return true;
+        }
 
+        printf("DEBUG: ip = (struct vr_ip *)pkt_network_header(pkt);\n");
         ip = (struct vr_ip *)pkt_network_header(pkt);
-        if (!ip)
+        if (!ip) {
+            printf("DEBUG: vr_has_to_fragment() with return=false\n");
             return false;
+        }
 
+        printf("DEBUG: len += (ip->ip_hl * 4);\n");
         len += (ip->ip_hl * 4);
 
         if (ip->ip_proto == VR_IP_PROTO_TCP) {
+            printf("DEBUG: tcp = (struct vr_tcp *)((unsigned char *)ip + ...\n");
             tcp = (struct vr_tcp *)((unsigned char *)ip + (ip->ip_hl * 4));
+            printf("DEBUG: len += (tcp->tcp_offset * 4);\n");
             len += (tcp->tcp_offset * 4);
         }
     } else {
+        printf("DEBUG: len = pkt_len(pkt);\n");
         len = pkt_len(pkt);
     }
 
-    if ((len + tun_len) > mtu)
+    if ((len + tun_len) > mtu) {
+        printf("DEBUG: vr_has_to_fragment() with return=true\n");
         return true;
+    }
 
+    printf("DEBUG: vr_has_to_fragment() with return=false\n");
     return false;
 }
 
@@ -779,4 +794,3 @@ vr_inet_route_flags(unsigned int vrf, unsigned int ip)
 
     return rt.rtr_req.rtr_label_flags;
 }
-
