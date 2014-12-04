@@ -325,10 +325,13 @@ fh_pgso_size(struct vr_packet *pkt)
 {
 	printf("DEBUG: entering fh_pgso_size();\n");
 	//struct sk_buff *skb = vp_os_packet(pkt);
+	//struct mbuf *m;
+
+	//m = vp_os_packet(pkt);
 
 	//return skb_shinfo(skb)->gso_size;
-	printf("DEBUG: exiting fh_pgso_size() with return=1;\n");
-	return 1;
+	printf("DEBUG: exiting fh_pgso_size() with return=0;\n");
+	return 0;
 }
 
 static unsigned int
