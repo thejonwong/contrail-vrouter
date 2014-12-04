@@ -321,6 +321,17 @@ fh_pset_data(struct vr_packet *pkt, unsigned short offset)
 }
 
 static unsigned int
+fh_pgso_size(struct vr_packet *pkt)
+{
+	printf("DEBUG: entering fh_pgso_size();\n");
+	//struct sk_buff *skb = vp_os_packet(pkt);
+
+	//return skb_shinfo(skb)->gso_size;
+	printf("DEBUG: exiting fh_pgso_size() with return=1;\n");
+	return 1;
+}
+
+static unsigned int
 fh_get_cpu(void)
 {
 	unsigned int cpuid;
@@ -663,6 +674,7 @@ struct host_os freebsd_host = {
 	.hos_pfrag_len			= fh_pfrag_len,
 	.hos_phead_len			= fh_phead_len,
 	.hos_pset_data			= fh_pset_data,
+	.hos_pgso_size			= lh_pgso_size,
 
 	.hos_get_cpu			= fh_get_cpu,
 	.hos_schedule_work		= fh_schedule_work,

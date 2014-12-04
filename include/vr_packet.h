@@ -672,8 +672,14 @@ vr_init_forwarding_md(struct vr_forwarding_md *fmd)
 static inline bool
 pkt_is_gso(struct vr_packet *pkt)
 {
-    if (vr_pgso_size(pkt))
+    printf("DEBUG: entering pkt_is_gso();\n");
+    printf("DEBUG: if (vr_pgso_size(pkt)) {\n");
+    if (vr_pgso_size(pkt)) {
+        printf("DEBUG: exiting pkt_is_gso() with return=true\n");
         return true;
+    }
+
+    printf("DEBUG: exiting pkt_is_gso() with return=false\n");
     return false;
 }
 
