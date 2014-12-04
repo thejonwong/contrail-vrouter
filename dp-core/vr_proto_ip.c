@@ -705,6 +705,7 @@ vr_has_to_fragment(struct vr_interface *vif, struct vr_packet *pkt,
     unsigned int len;
     struct vr_ip *ip;
     struct vr_tcp *tcp;
+    printf("DEBUG: unsigned int mtu = vif_get_mtu(vif);\n");
     unsigned int mtu = vif_get_mtu(vif);
 
     printf("DEBUG: if (pkt_is_gso(pkt)) {\n");

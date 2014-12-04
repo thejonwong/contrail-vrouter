@@ -365,6 +365,21 @@ freebsd_if_get_encap(struct vr_interface *vif)
 	return VIF_ENCAP_TYPE_ETHER;
 }
 
+static unsigned int
+freebsd_if_get_mtu(struct vr_interface *vif)
+{
+	printf("DEBUG: entering freebsd_if_get_mtu();\n");
+	//struct net_device *dev = (struct net_device *)vif->vif_os;
+
+	//if (dev)
+	//	return dev->mtu;
+	//else
+	//	return vif->vif_mtu;
+
+	printf("DEBUG: exiting freebsd_if_get_mtu() with return=1;\n");
+	return 1;
+}
+
 struct vr_host_interface_ops vr_freebsd_interface_ops = {
 	.hif_add		= freebsd_if_add,
 	.hif_del		= freebsd_if_del,
@@ -374,6 +389,7 @@ struct vr_host_interface_ops vr_freebsd_interface_ops = {
 	.hif_rx			= freebsd_if_rx,
 	.hif_get_settings	= freebsd_if_get_settings,
 	.hif_get_encap 	= freebsd_if_get_encap,
+	.hif_get_mtu        =       freebsd_if_get_mtu,
 };
 
 void
