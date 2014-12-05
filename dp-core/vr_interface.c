@@ -519,7 +519,6 @@ vhost_rx(struct vr_interface *vif, struct vr_packet *pkt,
 static int
 vhost_tx(struct vr_interface *vif, struct vr_packet *pkt)
 {
-    printf("DEBUG: entering vhost_tx();\n");
     int ret;
     struct vr_interface_stats *stats = vif_get_stats(vif, pkt->vp_cpu);
     unsigned short eth_proto, pull_len = 0;
@@ -552,7 +551,6 @@ vhost_tx(struct vr_interface *vif, struct vr_packet *pkt)
                 new_eth = pkt_pull(pkt, pull_len);
                 if (!new_eth) {
                     vr_pfree(pkt, VP_DROP_PULL);
-                    printf("DEBUG: exiting vhost_tx() with return=0\n;");
                     return 0;
                 }
                 memmove(new_eth, eth, (2 * VR_ETHER_ALEN));
@@ -574,7 +572,6 @@ vhost_tx(struct vr_interface *vif, struct vr_packet *pkt)
         stats->vis_oerrors++;
     }
 
-    printf("DEBUG: exiting vhost_tx() with ret=%d\n;", ret);
     return ret;
 }
 
