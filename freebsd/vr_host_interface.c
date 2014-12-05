@@ -369,21 +369,23 @@ static unsigned int
 freebsd_if_get_mtu(struct vr_interface *vif)
 {
 	printf("DEBUG: entering freebsd_if_get_mtu();\n");
-	struct ifnet *ifp;
-	struct if_data *ifdp;
-
-	ifp = (struct ifnet *)vif->vif_os;
-	ifdp = &ifp->if_data;
-
-	if (ifdp) {
-		printf("DEBUG: exiting freebsd_if_get_mtu() with return=%lu"
-			"casted to: %d;\n", ifdp->ifi_mtu, (unsigned int)ifdp->ifi_mtu);
-		return (unsigned int)ifdp->ifi_mtu;
-	}
-	else {
-		printf("DEBUG: exiting freebsd_if_get_mtu() with return=%d;\n", vif->vif_mtu);
-		return vif->vif_mtu;
-	}
+	// struct ifnet *ifp;
+	// struct if_data *ifdp;
+	// 
+	// ifp = (struct ifnet *)vif->vif_os;
+	// ifdp = &ifp->if_data;
+	// 
+	// if (ifdp) {
+	// 	printf("DEBUG: exiting freebsd_if_get_mtu() with return=%lu"
+	// 		"casted to: %d;\n", ifdp->ifi_mtu, (unsigned int)ifdp->ifi_mtu);
+	// 	return (unsigned int)ifdp->ifi_mtu;
+	// }
+	// else {
+	// 	printf("DEBUG: exiting freebsd_if_get_mtu() with return=%d;\n", vif->vif_mtu);
+	// 	return vif->vif_mtu;
+	// }
+ 	printf("DEBUG: exiting freebsd_if_get_mtu() with return=%d;\n", vif->vif_mtu);
+ 	return vif->vif_mtu;
 }
 
 struct vr_host_interface_ops vr_freebsd_interface_ops = {
