@@ -375,8 +375,6 @@ freebsd_if_get_mtu(struct vr_interface *vif)
 	ifp = (struct ifnet *)vif->vif_os;
 	ifdp = &ifp->if_data;
 
-	// (woz@semihalf.com): ifi_mtu is unsigned long, but
-	// this casting is probably a bad idea.
 	if (ifdp) {
 		printf("DEBUG: exiting freebsd_if_get_mtu() with return=%lu"
 			"casted to: %d;\n", ifdp->ifi_mtu, (unsigned int)ifdp->ifi_mtu);

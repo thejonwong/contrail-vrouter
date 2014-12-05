@@ -1383,9 +1383,9 @@ nh_gre_tunnel(unsigned short vrf, struct vr_packet *pkt,
         goto send_fail;
     }
     printf("DEBUG: vif->vif_tx(vif, pkt);\n");
-    vif->vif_tx(vif, pkt);
-    printf("DEBUG: exiting nh_gre_tunnel() with return=0\n");
-    return 0;
+    ret = vif->vif_tx(vif, pkt);
+    printf("DEBUG: exiting nh_gre_tunnel() with return=%d\n", ret);
+    return ret;
 
 send_fail:
     printf("DEBUG: entering send_fail;\n");
