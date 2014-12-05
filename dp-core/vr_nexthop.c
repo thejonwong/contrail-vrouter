@@ -1308,7 +1308,7 @@ nh_gre_tunnel(unsigned short vrf, struct vr_packet *pkt,
         pkt = tmp_pkt;
     }
 
-    printf("if (nh_push_mpls_header(pkt, fmd->fmd_label) < 0);\n");
+    printf("DEBUG: if (nh_push_mpls_header(pkt, fmd->fmd_label) < 0);\n");
     if (nh_push_mpls_header(pkt, fmd->fmd_label) < 0)
         goto send_fail;
 
@@ -1384,7 +1384,8 @@ nh_gre_tunnel(unsigned short vrf, struct vr_packet *pkt,
     }
     printf("DEBUG: vif->vif_tx(vif, pkt);\n");
     int ret = vif->vif_tx(vif, pkt);
-    printf("DEBUG: exiting nh_gre_tunnel() with return=%d\n", ret);
+    printf("DEBUG: finished vif->vif_tx(vif, pkt);with return=%d\n", ret);
+    printf("DEBUG: exiting nh_gre_tunnel() with return=0\n");
     return ret;
 
 send_fail:
