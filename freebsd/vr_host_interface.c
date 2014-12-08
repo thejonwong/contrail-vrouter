@@ -377,7 +377,7 @@ freebsd_if_get_mtu(struct vr_interface *vif)
 	
 	if (ifdp) {
 		printf("DEBUG: exiting freebsd_if_get_mtu() with return=%lu"
-			"casted to: %d;\n", ifdp->ifi_mtu, (unsigned int)ifdp->ifi_mtu);
+			"casted to:%d;\n", ifdp->ifi_mtu, (unsigned int)ifdp->ifi_mtu);
 		return (unsigned int)ifdp->ifi_mtu;
 	}
 	else {
