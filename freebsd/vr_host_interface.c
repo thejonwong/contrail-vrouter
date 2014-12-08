@@ -232,6 +232,7 @@ freebsd_if_del_tap(struct vr_interface *vif)
 static int
 freebsd_if_tx(struct vr_interface *vif, struct vr_packet *pkt)
 {
+	printf("DEBUG: entering freebsd_if_tx();\n");
 	struct ifnet *ifp;
 	struct mbuf *m, *m0;
 	struct ether_header *eh;
@@ -309,6 +310,7 @@ freebsd_if_tx(struct vr_interface *vif, struct vr_packet *pkt)
 	/* Free packet */
 	uma_zfree(zone_vr_packet, pkt);
 
+	printf("DEBUG: exiting freebsd_if_tx() with return=%d;\n", ret);
 	return (ret);
 }
 
